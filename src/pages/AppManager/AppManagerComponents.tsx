@@ -10,6 +10,7 @@ import { ClaudeCodeAccountSection } from './ClaudeCodeAccountSection';
 import React, { useEffect, useMemo, useState } from 'react';
 import { RoutingToggle } from '../../components/RoutingToggle';
 import { ModelListCard } from '../../components/ModelListCard';
+import { ViewModeTabs } from '../../components/ViewModeTabs';
 import {
   DndContext,
   PointerSensor,
@@ -66,22 +67,14 @@ export const AppManagerTitleActions: React.FC = () => {
       >
         <Settings size={16} />
       </button>
-      <div className="flex gap-1 border border-cyber-border rounded-button overflow-hidden">
-        {(['desktop', 'install'] as const).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
-            aria-pressed={viewMode === mode}
-            className={`px-3 py-1.5 text-sm font-mono transition-colors ${
-              viewMode === mode
-                ? 'bg-cyber-elevated text-cyber-text'
-                : 'text-cyber-text-secondary hover:text-cyber-text'
-            }`}
-          >
-            {t(mode === 'desktop' ? 'aiDesktop.desktopView' : 'aiDesktop.installView')}
-          </button>
-        ))}
-      </div>
+      <ViewModeTabs
+        value={viewMode}
+        onChange={setViewMode}
+        options={[
+          { value: 'desktop', label: t('aiDesktop.desktopView') },
+          { value: 'install', label: t('aiDesktop.installView') },
+        ]}
+      />
       <button
         onClick={scanTools}
         disabled={isScanning}

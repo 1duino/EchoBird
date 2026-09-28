@@ -61,6 +61,47 @@
   color: rgb(var(--text-primary-rgb));
 }
 
+.view-mode-tab[aria-pressed='true'] {
+  background-color: color-mix(in srgb, rgb(var(--accent-rgb)) 30%, rgb(var(--bg-base-rgb)));
+  --view-mode-wave-rgb: var(--accent-rgb);
+  --view-mode-wave-stops:
+    rgb(var(--view-mode-wave-rgb) / 0.5) 0%, rgb(var(--view-mode-wave-rgb) / 0.46) 20%,
+    rgb(var(--view-mode-wave-rgb) / 0.32) 45%, rgb(var(--view-mode-wave-rgb) / 0.12) 70%,
+    rgb(var(--view-mode-wave-rgb) / 0.03) 85%, rgb(var(--view-mode-wave-rgb) / 0) 100%;
+  background-image:
+    radial-gradient(ellipse 45% 80% at 50% 0%, var(--view-mode-wave-stops)),
+    radial-gradient(ellipse 45% 80% at 50% 100%, var(--view-mode-wave-stops));
+  background-size: 200% 200%;
+  background-position:
+    0% 50%,
+    100% 50%;
+  animation: view-mode-gradient-flow 3s linear infinite;
+}
+
+:root[data-theme='light'] .view-mode-tab[aria-pressed='true'] {
+  --view-mode-wave-rgb: 255 246 235;
+  background-color: color-mix(in srgb, rgb(var(--bg-elevated-rgb)) 94%, rgb(var(--accent-rgb)));
+}
+
+@keyframes view-mode-gradient-flow {
+  from {
+    background-position:
+      0% 50%,
+      100% 50%;
+  }
+  to {
+    background-position:
+      200% 50%,
+      300% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-mode-tab[aria-pressed='true'] {
+    animation: none;
+  }
+}
+
 /* ── Local Font Faces ──
    Latin via woff2 (Inter, CascadiaMono). CJK relies on system fonts:
    PingFang SC on macOS, Microsoft YaHei on Windows, Noto Sans CJK on Linux.

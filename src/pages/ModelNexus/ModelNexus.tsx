@@ -25,6 +25,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { X, Box, ExternalLink, Plus, Lock, Unlock, RefreshCw, GripVertical } from 'lucide-react';
 import { ModelCard, ModelCardSkeleton, getModelIcon, ModelIdCombobox } from '../../components';
+import { ViewModeTabs } from '../../components/ViewModeTabs';
 import { useToast } from '../../components/Toast';
 import { useI18n } from '../../hooks/useI18n';
 import * as api from '../../api/tauri';
@@ -517,28 +518,14 @@ export function ModelNexusTitleActions() {
   return (
     <div className="ml-auto flex-shrink-0 flex items-center gap-3">
       {/* View mode tabs */}
-      <div className="flex gap-1 border border-cyber-border rounded-button overflow-hidden">
-        <button
-          onClick={() => setViewMode('config')}
-          className={`px-3 py-1.5 text-sm font-mono transition-colors ${
-            viewMode === 'config'
-              ? 'bg-cyber-elevated text-cyber-text'
-              : 'text-cyber-text-secondary hover:text-cyber-text'
-          }`}
-        >
-          {t('model.config')}
-        </button>
-        <button
-          onClick={() => setViewMode('usage')}
-          className={`px-3 py-1.5 text-sm font-mono transition-colors ${
-            viewMode === 'usage'
-              ? 'bg-cyber-elevated text-cyber-text'
-              : 'text-cyber-text-secondary hover:text-cyber-text'
-          }`}
-        >
-          {t('model.usage')}
-        </button>
-      </div>
+      <ViewModeTabs
+        value={viewMode}
+        onChange={setViewMode}
+        options={[
+          { value: 'config', label: t('model.config') },
+          { value: 'usage', label: t('model.usage') },
+        ]}
+      />
 
       {/* Action button - same height and style as tabs */}
       {viewMode === 'config' ? (
