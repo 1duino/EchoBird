@@ -800,7 +800,7 @@ export const CodexAccountSection: React.FC<{ showDivider?: boolean }> = ({
                         style={{ width: `${account.quotaPercent ?? 0}%` }}
                       />
                     </span>
-                    <span className="w-[30px] flex-shrink-0 text-right text-[12px] font-semibold leading-[16px] text-cyber-text">
+                    <span className="ml-[6px] w-[30px] flex-shrink-0 text-right text-[12px] font-semibold leading-[16px] text-cyber-text">
                       {account.quotaPercent ?? 0}%
                     </span>
                     <QuotaCountdown resetAt={account.quotaResetAt} />
