@@ -2,6 +2,8 @@
 import { Translations } from './types';
 
 const en: Translations = {
+  'accountError.closeClient': 'Save your work and close the client, then try switching again.',
+  'accountError.initializeClient': 'Open the client once before adding an account.',
   'accountError.failed': 'Account operation failed. Please try again.',
   'accountError.home': 'Could not locate the user directory.',
   'accountError.loginRequired': 'Sign in again by adding the account.',

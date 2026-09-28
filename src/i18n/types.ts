@@ -2,6 +2,8 @@
 
 // Translation key definitions
 export type TKey =
+  | 'accountError.closeClient'
+  | 'accountError.initializeClient'
   | 'accountError.failed'
   | 'accountError.home'
   | 'accountError.loginRequired'

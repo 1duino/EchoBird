@@ -98,7 +98,8 @@ export const ToolCard = React.memo(
         img.style.display = 'none';
       }
     };
-    const iconUrl = iconSrc || `./icons/tools/${id}.${id === 'dsh' ? 'png' : 'svg'}`;
+    const iconUrl =
+      iconSrc || `./icons/tools/${id}.${id === 'dsh' || id === 'grokbot' ? 'png' : 'svg'}`;
 
     return (
       <div

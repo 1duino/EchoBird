@@ -1,0 +1,29 @@
+{
+    "id": "grokbot",
+    "displayName": "Grok Bot",
+    "homepage": "https://x.ai/bot",
+    "docs": "https://docs.x.ai/grok-bot/get-started",
+    "kind": "desktop",
+    "platforms": ["windows", "macos", "linux"],
+    "install": {
+        "windows_download": "Open https://x.ai/bot and choose More downloads, then Windows x64 or Arm64 matching the machine. Download the official installer and run it.",
+        "macos_download": "Open https://x.ai/bot and choose the Apple silicon or Intel DMG. Open the DMG and drag Grok Bot to Applications.",
+        "linux_download": "Open More downloads at https://x.ai/bot and choose the x64 or Arm64 deb, rpm or AppImage for this machine. Install with the distribution package manager, or save the AppImage under ~/Applications and make it executable.",
+        "note": "Grok Bot is the cloud-computer agent desktop app, separate from Grok Build (the grok CLI). It uses Cursor browser sign-in. EchoBird does not configure its models. Windows account management is verified against Grok Bot 0.61.0; macOS and Linux account switching are not supported yet. Launch Grok Bot once before adding accounts so Electron can initialize its secure storage."
+    },
+    "install_flow": {
+        "summary": "Detect existing installation first; otherwise download and open the official installer, then refresh detection.",
+        "agent_steps": [
+            "Detect OS and architecture. Check for an existing Grok Bot installation before downloading; do not reinstall a working client.",
+            "Use https://x.ai/bot to resolve the current official download for the detected OS and architecture. Do not install the grok CLI or third-party npm packages.",
+            "Save the installer to Downloads, report its exact path, and open it. Let the user complete any installer wizard.",
+            "Refresh EchoBird tool detection and launch Grok Bot. On Windows the default executable is %LOCALAPPDATA%\\Programs\\Grok Bot\\Grok Bot.exe.",
+            "Sign in with the user's Cursor account. EchoBird on Windows imports existing native accounts on first use; adding an account saves it in EchoBird, and applying a selection restarts Grok Bot with that account.",
+            "Do not link SuperGrok subscriptions, change plans, change privacy settings, or modify cloud Bots as part of installation."
+        ]
+    },
+    "network_requirements": {
+        "test_urls": ["https://x.ai/bot", "https://cursor.com", "https://api2.cursor.sh"],
+        "mirrors": {}
+    }
+}

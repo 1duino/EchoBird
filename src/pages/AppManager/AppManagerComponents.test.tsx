@@ -11,6 +11,8 @@ vi.mock('../../components', () => ({
   getModelIcon: () => null,
 }));
 
+vi.mock('../../utils/platform', () => ({ IS_WINDOWS: true, IS_LINUX: false, IS_MACOS: false }));
+
 const tool: LocalTool = {
   id: 'test-tool',
   name: 'Test Tool',
@@ -327,5 +329,45 @@ describe('Claude Desktop 1M control', () => {
     );
     expect(markup).toMatch(/aria-checked="true" aria-label="1M"/);
     expect(markup).toContain('agent.claude1mHint');
+  });
+});
+
+describe.each(['grokbot', 'cursor'] as const)('%s account-only panel', (client) => {
+  it('shows accounts for a no-model-config tool without rendering API models', async () => {
+    const { AppManagerPanel, AppManagerBottom } = await import('./AppManagerComponents');
+    const { ModelNexusContext } = await import('../ModelNexus/context');
+    const { ConfirmDialogProvider } = await import('../../components/ConfirmDialog');
+    const context = {
+      selectedTool: client,
+      selectedToolData: { ...tool, id: client, name: client, noModelConfig: true },
+      userModels: models,
+      toolModelConfig: { [client]: 'cloud-model' },
+      [client === 'cursor' ? 'cursorAccounts' : 'grokBotAccounts']: {
+        accounts: [{ id: 'one', email: 'bot@example.test', active: true }],
+        selectedId: 'one',
+        busy: true,
+        remainingSeconds: 60,
+        refreshing: new Set(),
+      },
+      viewMode: 'desktop',
+      launchAfterApply: false,
+      isLaunching: false,
+    } as unknown as AppManagerContextType;
+    const markup = renderToStaticMarkup(
+      <ConfirmDialogProvider>
+        <ModelNexusContext.Provider value={{} as React.ContextType<typeof ModelNexusContext>}>
+          <AppManagerContext.Provider value={context}>
+            <AppManagerPanel />
+            <AppManagerBottom />
+          </AppManagerContext.Provider>
+        </ModelNexusContext.Provider>
+      </ConfirmDialogProvider>
+    );
+    expect(markup).toContain('bot@example.test');
+    expect(markup).not.toContain('Cloud Model');
+    expect(markup).not.toContain('Auto Router');
+    expect(markup).not.toContain('agent.noModelConfig');
+    expect(markup).toContain('btn.launchApp');
+    expect(markup.match(/<button[^>]*disabled=""/g)).toHaveLength(2);
   });
 });

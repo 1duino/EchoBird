@@ -1,6 +1,6 @@
 // Per-tool "official" endpoint registry. The Restore button in App Manager
 // uses this to revert a tool from a third-party / proxy URL back to the
-// vendor's canonical address. Inspired by cc-switch.
+// vendor's canonical address.
 //
 // Entries should match the shape of an ApplyModelInput so the existing
 // applyModelToTool command can write them straight to the tool's config.

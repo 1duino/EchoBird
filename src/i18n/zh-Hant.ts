@@ -3,6 +3,8 @@
 // (軟體/使用者/設定/預設/影片/伺服器/訊息/檔案/啟動/連線 etc.)
 import { Translations } from './types';
 const zhHant: Partial<Translations> = {
+  'accountError.closeClient': '請儲存工作並關閉用戶端，然後重新切換帳號。',
+  'accountError.initializeClient': '請先開啟一次用戶端，再新增帳號。',
   'accountError.failed': '帳號操作失敗，請重試。',
   'accountError.home': '無法取得使用者目錄。',
   'accountError.loginRequired': '登入已失效，請重新新增帳號。',

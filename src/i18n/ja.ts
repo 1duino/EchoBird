@@ -3,6 +3,9 @@
 // where natural (API / GitHub / Claude / Codex / etc.)
 import { Translations } from './types';
 const ja: Partial<Translations> = {
+  'accountError.closeClient':
+    '作業を保存してクライアントを閉じてから、アカウントを再度切り替えてください。',
+  'accountError.initializeClient': 'アカウントを追加する前に、クライアントを一度起動してください。',
   'accountError.failed': 'アカウント操作に失敗しました。再試行してください。',
   'accountError.home': 'ユーザーディレクトリが見つかりません。',
   'accountError.loginRequired': '再度アカウントを追加してログインしてください。',

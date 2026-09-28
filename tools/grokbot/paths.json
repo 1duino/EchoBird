@@ -1,0 +1,21 @@
+{
+    "name": "Grok Bot",
+    "category": "Desktop",
+    "noModelConfig": true,
+    "apiProtocol": [],
+    "docs": "https://docs.x.ai/grok-bot/get-started",
+    "website": "https://x.ai/bot",
+    "command": "",
+    "configDir": "",
+    "configFile": "",
+    "paths": {
+        "win32": ["%LOCALAPPDATA%\\Programs\\Grok Bot\\Grok Bot.exe"],
+        "darwin": ["/Applications/Grok Bot.app/Contents/MacOS/Grok Bot"],
+        "linux": []
+    },
+    "installHints": {
+        "windowsDisplayNamePrefixes": ["Grok Bot"],
+        "macosAppName": "Grok Bot",
+        "linuxDesktopNames": ["Grok Bot"]
+    }
+}

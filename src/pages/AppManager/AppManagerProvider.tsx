@@ -1,3 +1,5 @@
+import { useCursorAccounts } from './useCursorAccounts';
+import { IS_WINDOWS } from '../../utils/platform';
 import { useDeepSeekAccounts } from './useDeepSeekAccounts';
 import { useGrokAccounts } from './useGrokAccounts';
 import { accountError } from '../../utils/accountError';
@@ -414,8 +416,32 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     setApplyError
   );
 
+  const clearGrokBotModel = useCallback(
+    () => setToolModelConfig((prev) => ({ ...prev, grokbot: null })),
+    []
+  );
+  const grokBotAccounts = useCursorAccounts(
+    'grokbot',
+    isActive && selectedTool === 'grokbot' && IS_WINDOWS,
+    clearGrokBotModel,
+    setApplyError
+  );
+
+  const clearCursorModel = useCallback(
+    () => setToolModelConfig((prev) => ({ ...prev, cursor: null })),
+    []
+  );
+  const cursorAccounts = useCursorAccounts(
+    'cursor',
+    isActive && selectedTool === 'cursor' && IS_WINDOWS,
+    clearCursorModel,
+    setApplyError
+  );
+
   // Set tool model (single selection) - UI state update
   const handleSelectModel = (toolId: string, modelId: string) => {
+    if (toolId === 'cursor') cursorAccounts.select(null);
+    if (toolId === 'grokbot') grokBotAccounts.select(null);
     if (toolId === 'dsh') deepSeekAccounts.select(null);
     if (toolId === 'grok') grokAccounts.select(null);
     if (toolId === 'claudecode') claudeCodeAccounts.setSelectedId(null);
@@ -647,7 +673,10 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     if (
       !switchingClaudeAccount &&
       !(workBuddyEdition && workBuddyAccounts.selectedId) &&
-      !(selectedTool === 'dsh' && deepSeekAccounts.selectedId)
+      !(selectedTool === 'dsh' && deepSeekAccounts.selectedId) &&
+      !(selectedTool === 'grok' && grokAccounts.selectedId) &&
+      !(selectedTool === 'cursor' && cursorAccounts.selectedId) &&
+      !(selectedTool === 'grokbot' && grokBotAccounts.selectedId)
     )
       setTimeout(() => setIsLaunching(false), 3000); // 3 second cooldown
 
@@ -689,8 +718,33 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
         setIsLaunching(false);
       }
       return;
+    } else if (selectedTool === 'grokbot' && grokBotAccounts.selectedId) {
+      try {
+        await api.switchGrokBotAccount(grokBotAccounts.selectedId);
+        await grokBotAccounts.reload();
+        await api.startTool('grokbot');
+      } catch (error) {
+        setApplyError(accountError(error, t));
+      } finally {
+        setIsLaunching(false);
+      }
+      return;
+    } else if (selectedTool === 'cursor' && cursorAccounts.selectedId) {
+      try {
+        await api.switchCursorAccount(cursorAccounts.selectedId);
+        await cursorAccounts.reload();
+        await api.startTool('cursor');
+      } catch (error) {
+        setApplyError(accountError(error, t));
+      } finally {
+        setIsLaunching(false);
+      }
+      return;
     } else if (selectedTool === 'grok' && grokAccounts.selectedId) {
       try {
+        const restored = await applyRestore('grok');
+        if (restored !== true)
+          throw new Error(typeof restored === 'string' ? restored : t('key.destroyed'));
         await grokAccounts.switchAccount();
         if (launchAfterApply) await api.startTool('grok');
       } catch (error) {
@@ -841,6 +895,8 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
         workBuddyAccounts,
         deepSeekAccounts,
         grokAccounts,
+        grokBotAccounts,
+        cursorAccounts,
         codexAccounts,
         selectedCodexAccountId,
         setSelectedCodexAccountId: selectCodexAccount,

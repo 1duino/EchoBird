@@ -210,8 +210,7 @@ pub(super) fn apply_claudedesktop(model_info: &ModelInfo) -> ApplyResult {
     // the upstream model id (`real_model_id`, source = model_info.model
     // with fallback to model_info.name) — NOT the user's editable card
     // display name, which can be anything ("deepseek你好" etc.) and
-    // would surface garbage in Desktop's picker. cc-switch surfaces the
-    // upstream id here too.
+    // would surface garbage in Desktop's picker.
     // Bridge mode rewrites the id downstream, so the canonical claude-opus-5-5
     // is correct (and clears Desktop's Claude-name filter). Relay mode bypasses
     // the proxy — Desktop talks to the upstream directly — so the real upstream

@@ -10,7 +10,7 @@
         "windows_download": "Open https://cursor.com/download in the browser, click the Windows installer. Saves to %USERPROFILE%\\Downloads by default.",
         "macos_download": "Open https://cursor.com/download in the browser, click the macOS download (.dmg). Saves to ~/Downloads by default.",
         "linux_download": "Open https://cursor.com/download and select the .deb, .rpm, or AppImage for x64 or ARM64. Install a downloaded .deb with apt or .rpm with the distro package manager. For AppImage, save under ~/Applications, make it executable, and run it.",
-        "note": "GUI IDE — VS Code fork by Anysphere. AI features and model selection are built into the app; Echobird does not switch its model."
+        "note": "GUI IDE — VS Code fork by Anysphere. AI features and model selection are built into the app; EchoBird does not switch its model. Windows: EchoBird supports multiple Cursor accounts for the default user-data directory; launch Cursor once before adding accounts. Switching closes and relaunches Cursor."
     },
     "install_flow": {
         "summary": "winget if available → otherwise download installer → user runs the wizard or AppImage",

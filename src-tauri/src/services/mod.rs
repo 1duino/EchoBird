@@ -11,11 +11,15 @@ pub mod codex_catalog;
 #[path = "codex_proxy/mod.rs"]
 pub mod codex_runtime;
 pub mod codex_session_merge;
+pub mod cursor_accounts;
+pub(crate) mod cursor_auth;
+pub(crate) mod cursor_usage;
 pub mod datalog;
 pub mod deepseek_accounts;
 pub mod deepseek_oauth;
 pub mod free_model_directory;
 pub mod grok_accounts;
+pub mod grok_bot_accounts;
 pub mod json_repair;
 pub mod llm_client;
 pub mod local_llm;

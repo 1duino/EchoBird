@@ -1,3 +1,5 @@
+import { CursorAccountSection } from './CursorAccountSection';
+import { IS_WINDOWS } from '../../utils/platform';
 import { AccountSectionButton, AccountSectionRow } from './AccountSectionPrimitives';
 import { DeepSeekAccountSection } from './DeepSeekAccountSection';
 import { GrokAccountSection } from './GrokAccountSection';
@@ -637,7 +639,7 @@ export const ModelListSection: React.FC<ModelListSectionProps> = ({
     );
   };
 
-  // Official-endpoint card — first item, like cc-switch's "Claude Official"
+  // Official-endpoint card — first item.
   const accountReplacesOfficial =
     selectedTool === 'codex' ||
     selectedTool === 'chatgptdesktop' ||
@@ -942,6 +944,8 @@ export const AppManagerPanel: React.FC = () => {
                 </a>
               </div>
             )
+          ) : (selectedTool === 'grokbot' || selectedTool === 'cursor') && IS_WINDOWS ? (
+            <CursorAccountSection tool={selectedTool} />
           ) : selectedToolData.noModelConfig ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
               <BoxIcon size={28} className="text-cyber-text opacity-25" />
@@ -1022,6 +1026,8 @@ export const AppManagerBottom: React.FC = () => {
     workBuddyAccounts,
     deepSeekAccounts,
     grokAccounts,
+    grokBotAccounts,
+    cursorAccounts,
     launchAfterApply,
     setLaunchAfterApply,
     isLaunching,
@@ -1045,6 +1051,8 @@ export const AppManagerBottom: React.FC = () => {
     (selectedTool === 'claudecode' && !!claudeCodeAccounts.selectedId) ||
     (selectedTool === 'dsh' && !!deepSeekAccounts.selectedId) ||
     (selectedTool === 'grok' && !!grokAccounts.selectedId) ||
+    (selectedTool === 'grokbot' && !!grokBotAccounts.selectedId) ||
+    (selectedTool === 'cursor' && !!cursorAccounts.selectedId) ||
     ((selectedTool === 'workbuddy' || selectedTool === 'workbuddyai') &&
       !!workBuddyAccounts.selectedId);
   // What will a click actually do?
@@ -1056,7 +1064,12 @@ export const AppManagerBottom: React.FC = () => {
     hasAccountSelected || (!noModelConfig && agreedConfigPolicy && hasModelSelected);
   const willLaunch = launchAfterApply || noModelConfig;
   const buttonDisabled =
-    !selectedToolData || isLaunching || (!isUninstalled && !willApply && !willLaunch);
+    !selectedToolData ||
+    isLaunching ||
+    (selectedTool === 'grok' && grokAccounts.busy) ||
+    (selectedTool === 'grokbot' && grokBotAccounts.busy) ||
+    (selectedTool === 'cursor' && cursorAccounts.busy) ||
+    (!isUninstalled && !willApply && !willLaunch);
 
   // Uninstalled → install flow; otherwise the existing launch/apply flow.
   const handlePrimaryClick = () => {

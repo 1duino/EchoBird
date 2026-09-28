@@ -63,8 +63,7 @@ fn codex_web_search_mode(base_url: &str) -> &'static str {
 /// `[tui.*]` NUX progress, `[plugins.*]` state, comments, hand-edited
 /// top-level keys).
 ///
-/// This is the bottom-out for cases where a sibling model-switcher
-/// (cc-switch, manual edits, a different tool) rewrote keys we own
+/// This handles cases where manual edits or another tool rewrote keys we own
 /// (`model_provider`, `model`, `wire_api`, `requires_openai_auth`, etc.)
 /// to point at a different provider. Without this, a v4.8.x `apply_codex`
 /// that only flipped `base_url` would leave the rest of the sibling
@@ -255,8 +254,7 @@ pub(crate) fn apply_codex_at(
     ensure_parent(&config_path);
 
     // Canonicalize every field we own. Overwrite-in-place
-    // if present, insert if missing. This is the bottom-out for sibling
-    // model-switchers (cc-switch, manual edits, etc.) that may have
+    // if present, insert if missing. Manual edits or other tools may have
     // rewritten our keys to point at a different provider — we restore
     // canonical shape end-to-end, not just `base_url`. Codex's own
     // runtime state (`[projects.*]` trust, `[tui.*]` NUX, `[plugins.*]`)

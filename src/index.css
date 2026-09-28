@@ -549,6 +549,7 @@ html.is-macos .page-scroll::-webkit-scrollbar {
 [data-theme='dark'] img[src*='/icons/models/yi.svg'],
 [data-theme='dark'] img[src*='/icons/models/ollama.svg'],
 [data-theme='dark'] img[src*='/icons/tools/opencode.svg'],
+[data-theme='dark'] img[src*='/icons/tools/cursor.svg'],
 [data-theme='dark'] img[src*='/icons/tools/grok.svg'],
 [data-theme='dark'] img[src*='/icons/tools/openscience.svg'] {
   filter: invert(1) brightness(0.92);

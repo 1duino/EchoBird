@@ -381,3 +381,74 @@ export function deleteGrokAccount(accountId: string): Promise<void> {
 export function refreshGrokAccount(accountId: string): Promise<GrokAccount> {
   return invoke('refresh_grok_account', { accountId });
 }
+
+export interface CursorUsage {
+  plan: string | null;
+  remainingPercent: number | null;
+  resetAt: number | null;
+}
+export interface GrokBotAccount {
+  id: string;
+  email: string;
+  active: boolean;
+  usage?: CursorUsage | null;
+}
+export interface GrokBotLogin {
+  loginId: string;
+  verificationUri: string;
+  expiresAt: number;
+}
+export function listGrokBotAccounts(): Promise<GrokBotAccount[]> {
+  return invoke('list_grok_bot_accounts');
+}
+export function startGrokBotLogin(): Promise<GrokBotLogin> {
+  return invoke('start_grok_bot_login');
+}
+export function pollGrokBotLogin(loginId: string): Promise<GrokBotAccount | null> {
+  return invoke('poll_grok_bot_login', { loginId });
+}
+export function cancelGrokBotLogin(loginId: string): Promise<void> {
+  return invoke('cancel_grok_bot_login', { loginId });
+}
+export function switchGrokBotAccount(accountId: string): Promise<GrokBotAccount> {
+  return invoke('switch_grok_bot_account', { accountId });
+}
+export function deleteGrokBotAccount(accountId: string): Promise<void> {
+  return invoke('delete_grok_bot_account', { accountId });
+}
+export function refreshGrokBotAccount(accountId: string): Promise<CursorUsage> {
+  return invoke('refresh_grok_bot_account', { accountId });
+}
+
+export interface CursorAccount {
+  id: string;
+  email: string;
+  active: boolean;
+  usage?: CursorUsage | null;
+}
+export interface CursorLogin {
+  loginId: string;
+  verificationUri: string;
+  expiresAt: number;
+}
+export function listCursorAccounts(): Promise<CursorAccount[]> {
+  return invoke('list_cursor_accounts');
+}
+export function startCursorLogin(): Promise<CursorLogin> {
+  return invoke('start_cursor_login');
+}
+export function pollCursorLogin(loginId: string): Promise<CursorAccount | null> {
+  return invoke('poll_cursor_login', { loginId });
+}
+export function cancelCursorLogin(loginId: string): Promise<void> {
+  return invoke('cancel_cursor_login', { loginId });
+}
+export function switchCursorAccount(accountId: string): Promise<CursorAccount> {
+  return invoke('switch_cursor_account', { accountId });
+}
+export function deleteCursorAccount(accountId: string): Promise<void> {
+  return invoke('delete_cursor_account', { accountId });
+}
+export function refreshCursorAccount(accountId: string): Promise<CursorUsage> {
+  return invoke('refresh_cursor_account', { accountId });
+}

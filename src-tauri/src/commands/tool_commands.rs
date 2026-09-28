@@ -5,6 +5,74 @@ use crate::services::codex_accounts::{self, CodexAccountSummary};
 use crate::services::tool_config_manager::{self, ApplyResult, ModelInfo};
 use crate::services::tool_manager;
 
+use crate::services::grok_bot_accounts::{
+    self, Account as GrokBotAccount, LoginStart as GrokBotLogin,
+};
+
+#[tauri::command]
+pub async fn list_grok_bot_accounts() -> Result<Vec<GrokBotAccount>, String> {
+    grok_bot_accounts::list().await
+}
+#[tauri::command]
+pub fn start_grok_bot_login() -> Result<GrokBotLogin, String> {
+    grok_bot_accounts::start_login()
+}
+#[tauri::command]
+pub async fn poll_grok_bot_login(login_id: String) -> Result<Option<GrokBotAccount>, String> {
+    grok_bot_accounts::poll_login(&login_id).await
+}
+#[tauri::command]
+pub fn cancel_grok_bot_login(login_id: String) -> Result<(), String> {
+    grok_bot_accounts::cancel_login(&login_id)
+}
+#[tauri::command]
+pub async fn switch_grok_bot_account(account_id: String) -> Result<GrokBotAccount, String> {
+    grok_bot_accounts::switch(&account_id).await
+}
+#[tauri::command]
+pub async fn delete_grok_bot_account(account_id: String) -> Result<(), String> {
+    grok_bot_accounts::delete(&account_id).await
+}
+#[tauri::command]
+pub async fn refresh_grok_bot_account(
+    account_id: String,
+) -> Result<crate::services::cursor_usage::Usage, String> {
+    grok_bot_accounts::refresh(&account_id).await
+}
+
+use crate::services::cursor_accounts::{self, Account as CursorAccount, LoginStart as CursorLogin};
+
+#[tauri::command]
+pub async fn list_cursor_accounts() -> Result<Vec<CursorAccount>, String> {
+    cursor_accounts::list().await
+}
+#[tauri::command]
+pub fn start_cursor_login() -> Result<CursorLogin, String> {
+    cursor_accounts::start_login()
+}
+#[tauri::command]
+pub async fn poll_cursor_login(login_id: String) -> Result<Option<CursorAccount>, String> {
+    cursor_accounts::poll_login(&login_id).await
+}
+#[tauri::command]
+pub fn cancel_cursor_login(login_id: String) -> Result<(), String> {
+    cursor_accounts::cancel_login(&login_id)
+}
+#[tauri::command]
+pub async fn switch_cursor_account(account_id: String) -> Result<CursorAccount, String> {
+    cursor_accounts::switch(&account_id).await
+}
+#[tauri::command]
+pub async fn delete_cursor_account(account_id: String) -> Result<(), String> {
+    cursor_accounts::delete(&account_id).await
+}
+#[tauri::command]
+pub async fn refresh_cursor_account(
+    account_id: String,
+) -> Result<crate::services::cursor_usage::Usage, String> {
+    cursor_accounts::refresh(&account_id).await
+}
+
 /// Copy a built-in tool's bundle to the user's ~/.echobird/<id>/ directory so
 /// the "我的AI项目" page can present real, navigable, editable reference
 /// files (Reversi / Translator). This is a one-way dead copy — editing or

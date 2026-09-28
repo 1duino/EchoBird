@@ -1,3 +1,4 @@
+import type { useCursorAccounts } from './useCursorAccounts';
 import type { useDeepSeekAccounts } from './useDeepSeekAccounts';
 import type { useGrokAccounts } from './useGrokAccounts';
 import type { useWorkBuddyAccounts } from './useWorkBuddyAccounts';
@@ -26,6 +27,8 @@ export interface AppManagerContextType {
   workBuddyAccounts: ReturnType<typeof useWorkBuddyAccounts>;
   deepSeekAccounts: ReturnType<typeof useDeepSeekAccounts>;
   grokAccounts: ReturnType<typeof useGrokAccounts>;
+  grokBotAccounts: ReturnType<typeof useCursorAccounts>;
+  cursorAccounts: ReturnType<typeof useCursorAccounts>;
   codexAccounts: CodexAccount[];
   selectedCodexAccountId: string | null;
   setSelectedCodexAccountId: (id: string | null) => void;

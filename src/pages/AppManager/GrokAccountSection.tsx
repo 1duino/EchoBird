@@ -4,12 +4,13 @@ import { ModelSwitchDivider } from './ModelSwitchDivider';
 import { AccountSectionButton, AccountSectionRow } from './AccountSectionPrimitives';
 
 export const GrokAccountSection: React.FC<{ showDivider?: boolean }> = ({ showDivider = true }) => {
-  const { grokAccounts } = useAppManager();
+  const { grokAccounts, isLaunching } = useAppManager();
   return (
     <section className={showDivider ? 'mb-3' : undefined}>
       <AccountSectionButton
         iconSrc="/icons/tools/grok.svg"
         busy={grokAccounts.busy}
+        disabled={isLaunching}
         remainingSeconds={grokAccounts.remainingSeconds}
         onClick={() => void grokAccounts.add()}
       />

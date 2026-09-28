@@ -24,3 +24,13 @@ export const IS_MACOS: boolean = (() => {
     return false;
   }
 })();
+
+// Grok Bot account storage currently supports the Windows Electron format.
+export const IS_WINDOWS: boolean = (() => {
+  try {
+    const ua = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData;
+    return (ua?.platform || navigator.platform || '').toLowerCase().includes('win');
+  } catch {
+    return false;
+  }
+})();

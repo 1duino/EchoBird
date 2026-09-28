@@ -1,6 +1,8 @@
 // Simplified Chinese translation
 import { Translations } from './types';
 const zhHans: Partial<Translations> = {
+  'accountError.closeClient': '请保存工作并关闭客户端，然后重新切换账号。',
+  'accountError.initializeClient': '请先打开一次客户端，再添加账号。',
   'accountError.failed': '账号操作失败，请重试。',
   'accountError.home': '无法获取用户目录。',
   'accountError.loginRequired': '登录已失效，请重新添加账号。',
