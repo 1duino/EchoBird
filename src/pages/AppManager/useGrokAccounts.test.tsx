@@ -73,6 +73,22 @@ describe('Grok Build account lifecycle', () => {
     vi.mocked(api.switchGrokAccount).mockRejectedValue(new Error('accountError.write'));
     await expect(state.switchAccount()).rejects.toThrow('accountError.write');
   });
+  it('keeps cached accounts without a dialog when returning to unreadable local state', async () => {
+    await mount();
+    act(() => renderer.update(<Harness enabled={false} />));
+    vi.mocked(api.listGrokAccounts).mockRejectedValueOnce(new Error('accountError.read'));
+    act(() => renderer.update(<Harness />));
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(state.accounts).toEqual([account]);
+    expect(showError).not.toHaveBeenCalled();
+    expect(api.refreshGrokAccount).not.toHaveBeenCalled();
+
+    vi.mocked(api.refreshGrokAccount).mockRejectedValueOnce(new Error('accountError.network'));
+    await act(async () => state.refresh(account));
+    expect(showError).toHaveBeenCalledWith('accountError.network');
+  });
   it('cancels a login that finishes starting after leaving the tool', async () => {
     await mount();
     const waiting = deferred<api.GrokLogin>();

@@ -409,16 +409,16 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     () => setToolModelConfig((prev) => ({ ...prev, grok: null })),
     []
   );
+  const selectedToolData = detectedTools.find(
+    (t) => t.id === selectedTool && (!isActive || t.installed === (viewMode === 'desktop'))
+  );
   const grokAccounts = useGrokAccounts(
-    selectedTool === 'grok',
+    isActive && selectedTool === 'grok' && !!selectedToolData?.installed,
     !!toolModelConfig.grok,
     clearGrokModel,
     setApplyError
   );
 
-  const selectedToolData = detectedTools.find(
-    (t) => t.id === selectedTool && (!isActive || t.installed === (viewMode === 'desktop'))
-  );
   const clearGrokBotModel = useCallback(
     () => setToolModelConfig((prev) => ({ ...prev, grokbot: null })),
     []

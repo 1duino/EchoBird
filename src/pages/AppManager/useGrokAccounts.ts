@@ -54,8 +54,9 @@ export function useGrokAccounts(
               result.some((a) => a.id === id) ? id : (result.find((a) => a.active)?.id ?? null)
             );
         })
-        .catch((e) => {
-          if (g === generation.current) showError(accountError(e, t));
+        .catch(() => {
+          // Keep cached accounts while browsing if local state cannot be read.
+          // Explicit account actions still report failures.
         });
     }, 0);
     return () => {
@@ -69,7 +70,7 @@ export function useGrokAccounts(
       pending.current = null;
       if (p) void api.cancelGrokLogin(p.loginId).catch(() => {});
     };
-  }, [enabled, reload, showError, t]);
+  }, [enabled, reload]);
   const select = (id: string | null) => {
     selectionRevision.current += 1;
     setSelectedId(id);
