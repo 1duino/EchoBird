@@ -136,6 +136,7 @@ jobs:
           # stays a draft (created that way) until the operator flips it public
           # as the last step via `gh release edit <tag> --draft=false`.
           releaseId: ${{ needs.create-release.outputs.release_id }}
+          tauriScript: npx --yes @tauri-apps/cli@2.10.1
           args: ${{ matrix.args }}
 
   rename-assets:
