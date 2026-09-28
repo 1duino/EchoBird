@@ -56,6 +56,22 @@
       "region": "global"
     },
     {
+      "name": "Kimi For Coding",
+      "url": "https://www.kimi.com/code/console",
+      "baseUrl": "https://api.kimi.com/coding/v1",
+      "anthropicUrl": "https://api.kimi.com/coding",
+      "modelId": "kimi-for-coding",
+      "region": "cn"
+    },
+    {
+      "name": "Kimi For Coding Global",
+      "url": "https://www.kimi.ai/code/console",
+      "baseUrl": "https://api.kimi.ai/coding/v1",
+      "anthropicUrl": "https://api.kimi.ai/coding",
+      "modelId": "kimi-for-coding",
+      "region": "global"
+    },
+    {
       "name": "Kimi 月之暗面",
       "url": "https://platform.kimi.com/",
       "baseUrl": "https://api.moonshot.cn/v1",

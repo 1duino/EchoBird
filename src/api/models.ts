@@ -63,8 +63,10 @@ export async function isKeyDestroyed(internalId: string): Promise<boolean> {
 }
 
 export interface UsageQuota {
+  // Used percentage. Period-based quotas are displayed as remaining allowance.
   percentage: number;
   resetAt: number;
+  period?: 'fiveHour' | 'daily' | 'weekly' | 'monthly';
   balance?: number;
   balanceUnit?: string;
 }
@@ -82,6 +84,22 @@ export interface UsageResult {
 
 export async function queryModelUsage(internalId: string): Promise<UsageResult> {
   return invoke('query_model_usage', { internalId });
+}
+
+export interface ZhipuTeamAccess {
+  organizationId: string;
+  projectId: string;
+}
+
+export function getZhipuTeamAccess(internalId: string): Promise<ZhipuTeamAccess | null> {
+  return invoke('get_zhipu_team_access', { internalId });
+}
+
+export function saveZhipuTeamAccess(
+  internalId: string,
+  access: ZhipuTeamAccess | null
+): Promise<void> {
+  return invoke('save_zhipu_team_access', { internalId, access });
 }
 
 /** Save Volcengine IAM AK/SK (encrypted on the backend) for a specific model. */

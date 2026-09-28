@@ -637,6 +637,7 @@ export const ModelListSection: React.FC<ModelListSectionProps> = ({
     selectedTool === 'codex' ||
     selectedTool === 'chatgptdesktop' ||
     selectedTool === 'claudecode' ||
+    selectedTool === 'grok' ||
     selectedTool === 'workbuddy' ||
     selectedTool === 'workbuddyai';
   const official =

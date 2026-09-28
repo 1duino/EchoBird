@@ -6,6 +6,8 @@ import { useConfirm } from '../ConfirmDialog';
 import { useI18n } from '../../hooks/useI18n';
 import type { ModelUsageData } from '../../api/tauri';
 import type { TKey } from '../../i18n/types';
+import { useUsageClock } from '../../hooks/useUsageClock';
+import { formatQuotaPercent, quotaPercent, quotaPeriodKeys } from '../../utils/modelUsage';
 
 // Smart icon detection — match model name/ID to icon file
 export const getModelIcon = (name: string, modelId?: string): string | null => {
@@ -278,13 +280,10 @@ export const ModelCard = React.memo(
     const confirm = useConfirm();
     const { t } = useI18n();
 
-    // Real-time countdown update for usage mode
-    const [, setTick] = useState(0);
-    useEffect(() => {
-      if (viewMode !== 'usage' || !usageData) return;
-      const timer = setInterval(() => setTick((prev) => prev + 1), 60000); // Update every minute
-      return () => clearInterval(timer);
-    }, [viewMode, usageData]);
+    const now = useUsageClock(
+      viewMode === 'usage' &&
+        !!usageData?.quotas.some((quota) => quota.balance == null && quota.resetAt > 0)
+    );
 
     return (
       <div className="h-48 p-4 border border-transparent bg-cyber-surface hover:bg-cyber-elevated relative overflow-hidden rounded-card cursor-default transition-colors flex flex-col">
@@ -412,20 +411,27 @@ export const ModelCard = React.memo(
                     <>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-cyber-text font-bold">
-                          {`${quota.percentage.toFixed(1)}%`}
+                          {quota.period &&
+                            `${t(quotaPeriodKeys[quota.period])} ${t('model.quota.remaining')} `}
+                          {formatQuotaPercent(quota)}
                         </span>
                         <span className="text-cyber-text-muted text-[10px] translate-y-[2px]">
-                          {formatCountdown(
-                            // eslint-disable-next-line react-hooks/purity
-                            quota.resetAt - Date.now(),
-                            t
-                          )}
+                          {quota.resetAt > 0 ? formatCountdown(quota.resetAt - now, t) : '—'}
                         </span>
                       </div>
-                      <div className="h-1.5 bg-cyber-border/30 rounded-full overflow-hidden">
+                      <div
+                        role="progressbar"
+                        aria-label={
+                          quota.period ? t(quotaPeriodKeys[quota.period]) : t('model.quota.used')
+                        }
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={quotaPercent(quota) ?? undefined}
+                        className="h-1.5 bg-cyber-border/30 rounded-full overflow-hidden"
+                      >
                         <div
                           className="h-full bg-gradient-to-r from-cyber-accent to-cyber-accent/70 rounded-full transition-all duration-300"
-                          style={{ width: `${quota.percentage}%` }}
+                          style={{ width: `${quotaPercent(quota) ?? 0}%` }}
                         />
                       </div>
                     </>

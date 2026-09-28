@@ -4,6 +4,7 @@ import type { ModelConfig } from '../api/types';
 import type { ModelUsageData } from '../api/tauri';
 import type { TKey } from '../i18n';
 import { getModelIcon } from './cards';
+import { ModelQuotaSummary } from './ModelQuotaSummary';
 
 interface ModelListCardProps {
   model: ModelConfig;
@@ -45,12 +46,6 @@ export function ModelListCard({
   const isLocalModel = model.internalId === 'local-server' || model.internalId === 'smart-router';
   const canManage = !isLocalModel && model.modelType !== 'DEMO';
   const iconSrc = getModelIcon('', model.modelId || '');
-  const quota = usage?.quotas[0];
-  const usageSummary = quota
-    ? quota.balance != null
-      ? `${t('model.balance')}${quota.balance.toFixed(2)}`
-      : `${Number(quota.percentage.toFixed(1))}%`
-    : undefined;
 
   return (
     <div
@@ -91,11 +86,7 @@ export function ModelListCard({
           <div className="text-sm font-bold truncate leading-none flex-1 min-w-0">
             {model.name || 'Untitled Model'}
           </div>
-          {!isLocalModel && usageSummary && (
-            <span className="text-[10px] text-cyber-text-secondary shrink-0 whitespace-nowrap">
-              {usageSummary}
-            </span>
-          )}
+          {!isLocalModel && usage && <ModelQuotaSummary usage={usage} t={t} />}
           {badge}
         </div>
         <div className="flex items-center gap-2 mt-1 text-[10px] leading-tight">

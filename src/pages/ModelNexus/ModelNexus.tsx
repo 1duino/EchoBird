@@ -46,6 +46,15 @@ const isVolcengineUrl = (baseUrl: string, anthropicUrl?: string | null) => {
   return url.includes('ark.cn-beijing') || url.includes('volcengine') || url.includes('volces.com');
 };
 
+const isZhipuCnUrl = (baseUrl: string, anthropicUrl?: string | null) => {
+  try {
+    const url = new URL(baseUrl || anthropicUrl || '');
+    return url.protocol === 'https:' && url.hostname === 'open.bigmodel.cn';
+  } catch {
+    return false;
+  }
+};
+
 const visibleModelNexusModels = (models: ModelConfig[]) =>
   models.filter(
     (model) => model.internalId !== 'local-server' && model.internalId !== 'smart-router'
@@ -61,6 +70,7 @@ const isValidModelBaseUrl = (value: string) => {
 };
 
 export function ModelNexusProvider({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   // Models state
   const [userModels, setUserModels] = useState<ModelConfig[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
@@ -70,12 +80,17 @@ export function ModelNexusProvider({ children }: { children: React.ReactNode }) 
   // View mode state
   const [viewMode, setViewMode] = useState<'config' | 'usage'>('config');
   const [modelUsageData, setModelUsageData] = useState<Record<string, ModelUsageData>>({});
+  const usageAccessRevision = useRef<Record<string, number>>({});
   const [isRefreshingUsage, setIsRefreshingUsage] = useState(false);
   const [refreshingUsageIds, setRefreshingUsageIds] = useState<Set<string>>(new Set());
   // Volcengine AK/SK (per-model: one account per model)
   const { showToast } = useToast();
   const [volcAkSkMissingIds, setVolcAkSkMissingIds] = useState<Set<string>>(new Set());
   const [volcAkSkModelId, setVolcAkSkModelId] = useState<string | null>(null);
+  const [zhipuTeamModal, setZhipuTeamModal] = useState<{
+    modelId: string;
+    access: api.ZhipuTeamAccess | null;
+  } | null>(null);
 
   // Modal state
   const [showAddModelModal, setShowAddModelModal] = useState(false);
@@ -117,6 +132,15 @@ export function ModelNexusProvider({ children }: { children: React.ReactNode }) 
       setVolcAkSkInitial(null);
     }
     setVolcAkSkModelId(internalId);
+  };
+
+  const openZhipuTeamModal = async (modelId: string) => {
+    try {
+      const access = await api.getZhipuTeamAccess(modelId);
+      setZhipuTeamModal({ modelId, access });
+    } catch {
+      showToast('error', t('model.quota.accessFailed'));
+    }
   };
 
   const handleCardEdit = useCallback(
@@ -282,13 +306,19 @@ export function ModelNexusProvider({ children }: { children: React.ReactNode }) 
     setIsRefreshingUsage(true);
 
     // Parallel fetch; merge into existing so failed models keep their last data.
+    const revisions = userModels.map((model) => usageAccessRevision.current[model.internalId] ?? 0);
     const results = await Promise.allSettled(
       userModels.map((model) => api.queryModelUsage(model.internalId))
     );
     setModelUsageData((prev) => {
       const next = { ...prev };
       results.forEach((r, i) => {
-        if (r.status === 'fulfilled' && r.value.success && r.value.data) {
+        if (
+          r.status === 'fulfilled' &&
+          r.value.success &&
+          r.value.data &&
+          revisions[i] === (usageAccessRevision.current[userModels[i].internalId] ?? 0)
+        ) {
           next[userModels[i].internalId] = r.value.data;
         }
       });
@@ -298,15 +328,17 @@ export function ModelNexusProvider({ children }: { children: React.ReactNode }) 
   }, [isRefreshingUsage, userModels]);
 
   // Refresh usage for a single model
-  const refreshSingleUsage = async (modelId: string) => {
-    if (refreshingUsageIds.has(modelId)) return;
+  const refreshSingleUsage = async (modelId: string, accessChanged = false) => {
+    if (refreshingUsageIds.has(modelId) && !accessChanged) return;
 
     const model = userModels.find((m) => m.internalId === modelId);
     if (!model) return;
 
+    const revision = usageAccessRevision.current[modelId] ?? 0;
     setRefreshingUsageIds((prev) => new Set(prev).add(model.internalId));
     try {
       const result = await api.queryModelUsage(model.internalId);
+      if (revision !== (usageAccessRevision.current[modelId] ?? 0)) return;
       if (result.error === 'VOLC_AKSK_REQUIRED') {
         setVolcAkSkMissingIds((prev) => new Set(prev).add(model.internalId));
         return;
@@ -330,6 +362,7 @@ export function ModelNexusProvider({ children }: { children: React.ReactNode }) 
       /* silent */
     } finally {
       setRefreshingUsageIds((prev) => {
+        if (revision !== (usageAccessRevision.current[modelId] ?? 0)) return prev;
         const next = new Set(prev);
         next.delete(model.internalId);
         return next;
@@ -493,15 +526,44 @@ export function ModelNexusProvider({ children }: { children: React.ReactNode }) 
         handleCardEdit,
         handleCardDelete,
         openAkskModal,
+        openZhipuTeamModal,
       }}
     >
       {children}
       {volcAkSkModelId && (
-        <VolcAkskModal
+        <UsageAccessModal
           onClose={() => setVolcAkSkModelId(null)}
           onSave={(ak, sk) => saveVolcAksk(volcAkSkModelId, ak, sk)}
           initialAk={volcAkSkInitial?.access_key ?? ''}
           initialSk={volcAkSkInitial?.secret_key ?? ''}
+        />
+      )}
+      {zhipuTeamModal && (
+        <UsageAccessModal
+          key={zhipuTeamModal.modelId}
+          team
+          onClose={() => setZhipuTeamModal(null)}
+          initialAk={zhipuTeamModal.access?.organizationId ?? ''}
+          initialSk={zhipuTeamModal.access?.projectId ?? ''}
+          onSave={async (organizationId, projectId) => {
+            try {
+              await api.saveZhipuTeamAccess(
+                zhipuTeamModal.modelId,
+                organizationId && projectId ? { organizationId, projectId } : null
+              );
+              usageAccessRevision.current[zhipuTeamModal.modelId] =
+                (usageAccessRevision.current[zhipuTeamModal.modelId] ?? 0) + 1;
+              setModelUsageData((previous) => {
+                const next = { ...previous };
+                delete next[zhipuTeamModal.modelId];
+                return next;
+              });
+              setZhipuTeamModal(null);
+              await refreshSingleUsage(zhipuTeamModal.modelId, true);
+            } catch {
+              showToast('error', t('model.quota.accessFailed'));
+            }
+          }}
         />
       )}
     </ModelNexusContext.Provider>
@@ -561,28 +623,37 @@ export function ModelNexusTitleActions() {
 
 // ===== Main Content (model card grid) =====
 
-// Volcengine AK/SK config modal. Two fields, mounted fresh each open.
-function VolcAkskModal({
+// Two-field usage access configuration, mounted fresh for each model.
+function UsageAccessModal({
   onClose,
   onSave,
   initialAk = '',
   initialSk = '',
+  team = false,
 }: {
   onClose: () => void;
   onSave: (accessKey: string, secretKey: string) => Promise<void>;
   initialAk?: string;
   initialSk?: string;
+  team?: boolean;
 }) {
   const { t } = useI18n();
   const [ak, setAk] = useState(initialAk);
   const [sk, setSk] = useState(initialSk);
   const [saving, setSaving] = useState(false);
+  const valid = team ? Boolean(ak.trim()) === Boolean(sk.trim()) : Boolean(ak.trim() && sk.trim());
+  const accessUrl = team
+    ? 'https://open.bigmodel.cn'
+    : 'https://console.volcengine.com/iam/keymanage';
 
   const handleSave = async () => {
-    if (!ak.trim() || !sk.trim()) return;
+    if (!valid || saving) return;
     setSaving(true);
-    await onSave(ak.trim(), sk.trim());
-    setSaving(false);
+    try {
+      await onSave(ak.trim(), sk.trim());
+    } finally {
+      setSaving(false);
+    }
   };
 
   const pasteButton = (setter: (v: string) => void) => (
@@ -596,7 +667,7 @@ function VolcAkskModal({
           /* clipboard empty / unreadable - no-op */
         }
       }}
-      className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer text-xs text-cyber-text-secondary"
+      className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-cyber-text-secondary"
     >
       {t('model.paste')}
     </button>
@@ -632,14 +703,17 @@ function VolcAkskModal({
         </div>
         <div className="px-5 pb-5">
           <div className="space-y-4">
+            {team && (
+              <p className="text-xs text-cyber-text-secondary">{t('model.quota.teamHint')}</p>
+            )}
             <div>
               <label className="block text-xs text-cyber-text-secondary mb-1">
-                {t('model.akSkAccessKey')}
+                {team ? 'Organization ID' : t('model.akSkAccessKey')}
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="AK..."
+                  placeholder={team ? 'Organization ID' : 'AK...'}
                   value={ak}
                   onChange={(e) => setAk(e.target.value)}
                   autoFocus
@@ -650,12 +724,12 @@ function VolcAkskModal({
             </div>
             <div>
               <label className="block text-xs text-cyber-text-secondary mb-1">
-                {t('model.akSkSecretKey')}
+                {team ? 'Project ID' : t('model.akSkSecretKey')}
               </label>
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="SK..."
+                  placeholder={team ? 'Project ID' : 'SK...'}
                   value={sk}
                   onChange={(e) => setSk(e.target.value)}
                   className={inputClass}
@@ -666,14 +740,10 @@ function VolcAkskModal({
           </div>
           <button
             type="button"
-            onClick={() =>
-              shellOpen('https://console.volcengine.com/iam/keymanage').catch(() =>
-                window.open('https://console.volcengine.com/iam/keymanage', '_blank')
-              )
-            }
+            onClick={() => shellOpen(accessUrl).catch(() => window.open(accessUrl, '_blank'))}
             className="block text-xs text-cyber-accent hover:opacity-80 pt-3"
           >
-            https://console.volcengine.com/iam/keymanage
+            {accessUrl}
           </button>
           <div className="flex justify-end gap-3 pt-5">
             <button
@@ -685,7 +755,7 @@ function VolcAkskModal({
             <button
               className="text-xs font-mono text-cyber-accent hover:opacity-80 px-3 py-1 disabled:opacity-40"
               onClick={handleSave}
-              disabled={saving || !ak.trim() || !sk.trim()}
+              disabled={saving || !valid}
             >
               [{t('btn.save')}]
             </button>
@@ -755,6 +825,7 @@ export function ModelNexusMain() {
     handleCardEdit,
     handleCardDelete,
     openAkskModal,
+    openZhipuTeamModal,
     refreshSingleUsage,
     refreshingUsageIds,
     volcAkSkMissingIds,
@@ -835,7 +906,9 @@ export function ModelNexusMain() {
         onAccessKey={
           isVolcengineUrl(model.baseUrl, model.anthropicUrl)
             ? () => openAkskModal(model.internalId)
-            : undefined
+            : isZhipuCnUrl(model.baseUrl, model.anthropicUrl)
+              ? () => openZhipuTeamModal(model.internalId)
+              : undefined
         }
         akSkMissing={volcAkSkMissingIds.has(model.internalId)}
       />

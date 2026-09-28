@@ -81,6 +81,7 @@ export interface ModelNexusCtx {
   handleCardEdit: (model: ModelConfig) => Promise<void>;
   handleCardDelete: (modelId: string) => Promise<void>;
   openAkskModal: (modelId: string) => Promise<void>;
+  openZhipuTeamModal: (modelId: string) => Promise<void>;
   pingAllModels: () => Promise<void>;
   refreshAllUsage: () => Promise<void>;
   refreshSingleUsage: (modelId: string) => Promise<void>; // Single model refresh

@@ -166,6 +166,26 @@ describe('ModelListSection', () => {
       expect(markup).toContain('Cloud Model');
     }
   );
+
+  it('hides the Grok official card while keeping user models', async () => {
+    vi.stubGlobal('__APP_EDITION__', 'full');
+    const { ModelListSection } = await import('./AppManagerComponents');
+    const markup = renderToStaticMarkup(
+      <ModelListSection
+        selectedToolData={{ ...tool, id: 'grok' }}
+        userModels={models}
+        toolModelConfig={{}}
+        selectedTool="grok"
+        handleSelectModel={vi.fn()}
+        t={(key) => key}
+      />
+    );
+
+    expect(markup).not.toContain('xAI Official');
+    expect(markup).not.toContain('api.x.ai');
+    expect(markup).toContain('Cloud Model');
+    expect(markup).toContain('Local Model');
+  });
 });
 
 describe('CodexAccountSection', () => {
