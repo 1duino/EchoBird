@@ -17,6 +17,7 @@ pub(crate) mod cursor_usage;
 pub mod datalog;
 pub mod deepseek_accounts;
 pub mod deepseek_oauth;
+pub(crate) mod electron_storage;
 pub mod free_model_directory;
 pub mod grok_accounts;
 pub mod grok_bot_accounts;

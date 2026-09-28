@@ -11,7 +11,7 @@ vi.mock('../../components', () => ({
   getModelIcon: () => null,
 }));
 
-vi.mock('../../utils/platform', () => ({ IS_WINDOWS: true, IS_LINUX: false, IS_MACOS: false }));
+vi.mock('../../utils/platform', () => ({ IS_WINDOWS: false, IS_LINUX: true, IS_MACOS: false }));
 
 const tool: LocalTool = {
   id: 'test-tool',

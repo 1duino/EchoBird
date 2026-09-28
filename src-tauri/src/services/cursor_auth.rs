@@ -1,11 +1,6 @@
-//! Cursor account identity, browser authorization, and Windows Electron safeStorage.
-#[cfg(windows)]
-use aes_gcm::KeyInit;
-use aes_gcm::{aead::Aead, Aes256Gcm, Nonce};
-use base64::{
-    engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
-    Engine,
-};
+//! Shared Cursor identity and browser authorization.
+pub(super) use super::electron_storage::{cipher, decrypt, encrypt, Cipher};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use rand::RngCore;
 use serde::Serialize;
 use serde_json::Value;
@@ -66,83 +61,6 @@ pub(super) fn write(path: &Path, value: &impl Serialize) -> Result<(), String> {
     result
 }
 
-pub(super) fn cipher(dir: &Path) -> Result<Aes256Gcm, String> {
-    #[cfg(windows)]
-    {
-        use windows::Win32::{
-            Foundation::{LocalFree, HLOCAL},
-            Security::Cryptography::{
-                CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
-            },
-        };
-        let state: Value = read(&dir.join("Local State"))?;
-        let encoded = state["os_crypt"]["encrypted_key"]
-            .as_str()
-            .ok_or("accountError.keychain")?;
-        let wrapped = STANDARD
-            .decode(encoded)
-            .map_err(|_| "accountError.keychain")?;
-        let key = wrapped
-            .strip_prefix(b"DPAPI")
-            .ok_or("accountError.keychain")?;
-        let input = CRYPT_INTEGER_BLOB {
-            cbData: key.len().try_into().map_err(|_| "accountError.keychain")?,
-            pbData: key.as_ptr().cast_mut(),
-        };
-        let mut output = CRYPT_INTEGER_BLOB::default();
-        // DPAPI owns output; copy into the cipher before releasing it with LocalFree.
-        unsafe {
-            CryptUnprotectData(
-                &input,
-                None,
-                None,
-                None,
-                None,
-                CRYPTPROTECT_UI_FORBIDDEN,
-                &mut output,
-            )
-            .map_err(|_| "accountError.keychain")?;
-            let result = if output.cbData == 32 && !output.pbData.is_null() {
-                Aes256Gcm::new_from_slice(std::slice::from_raw_parts(output.pbData, 32))
-                    .map_err(|_| "accountError.keychain".to_string())
-            } else {
-                Err("accountError.keychain".into())
-            };
-            let _ = LocalFree(Some(HLOCAL(output.pbData.cast())));
-            result
-        }
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = dir;
-        Err("accountError.keychain".into())
-    }
-}
-
-pub(super) fn decrypt(cipher: &Aes256Gcm, encoded: &str) -> Result<String, String> {
-    let bytes = STANDARD
-        .decode(encoded)
-        .map_err(|_| "accountError.format")?;
-    if !bytes.starts_with(b"v10") || bytes.len() < 31 {
-        return Err("accountError.format".into());
-    }
-    let plain = cipher
-        .decrypt(Nonce::from_slice(&bytes[3..15]), &bytes[15..])
-        .map_err(|_| "accountError.keychain")?;
-    String::from_utf8(plain).map_err(|_| "accountError.format".into())
-}
-pub(super) fn encrypt(cipher: &Aes256Gcm, plain: &str) -> Result<String, String> {
-    let mut nonce = [0u8; 12];
-    rand::rngs::OsRng.fill_bytes(&mut nonce);
-    let mut bytes = b"v10".to_vec();
-    bytes.extend_from_slice(&nonce);
-    bytes.extend(
-        cipher
-            .encrypt(Nonce::from_slice(&nonce), plain.as_bytes())
-            .map_err(|_| "accountError.keychain")?,
-    );
-    Ok(STANDARD.encode(bytes))
-}
 pub(super) fn claims(token: &str) -> Result<Value, String> {
     let payload = token
         .split('.')
@@ -301,6 +219,100 @@ fn valid_pending(pending: &Option<Pending>, id: &str, now: i64) -> Result<Pendin
         return Err("accountError.expired".into());
     }
     Ok(p.clone())
+}
+
+#[cfg(unix)]
+pub(super) async fn close_client(tool: &str, name: &str) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = tool;
+        // Ask the app to quit so an editor can retain its unsaved-work confirmation.
+        let script = format!(
+            "if application \"{name}\" is running then\ntell application \"{name}\" to quit\nrepeat 100 times\nif application \"{name}\" is not running then return\ndelay 0.1\nend repeat\nerror \"Client is still running\"\nend if"
+        );
+        let mut command = tokio::process::Command::new("/usr/bin/osascript");
+        command
+            .args(["-e", &script])
+            .kill_on_drop(true)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        let status = tokio::time::timeout(Duration::from_secs(15), command.status())
+            .await
+            .map_err(|_| "accountError.closeClient")?
+            .map_err(|_| "accountError.closeClient")?;
+        if !status.success() {
+            return Err("accountError.closeClient".into());
+        }
+        Ok(())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let mut names = super::tool_manager::get_tool_process_names(tool);
+        names.push(name.into());
+        if let Some(path) = super::tool_manager::get_tool_exe_path(tool) {
+            if let Some(file) = Path::new(&path).file_name().and_then(|v| v.to_str()) {
+                names.push(file.into());
+            }
+        }
+        let running = || -> Result<Vec<i32>, String> {
+            let mut pids = Vec::new();
+            for entry in fs::read_dir("/proc")
+                .map_err(|_| "accountError.closeClient")?
+                .flatten()
+            {
+                let Some(pid) = entry
+                    .file_name()
+                    .to_str()
+                    .and_then(|s| s.parse::<i32>().ok())
+                    .filter(|pid| *pid > 1)
+                else {
+                    continue;
+                };
+                if !entry
+                    .metadata()
+                    .is_ok_and(|m| m.uid() == unsafe { libc::geteuid() })
+                {
+                    continue;
+                }
+                let Ok(exe) = fs::read_link(entry.path().join("exe")) else {
+                    continue;
+                };
+                let Some(exe_name) = exe.file_name().and_then(|s| s.to_str()) else {
+                    continue;
+                };
+                if names.iter().any(|name| name.eq_ignore_ascii_case(exe_name)) {
+                    pids.push(pid);
+                }
+            }
+            Ok(pids)
+        };
+        let pids = running()?;
+        if pids.is_empty() {
+            return Ok(());
+        }
+        // Linux has no portable save-aware window-close API across X11 and Wayland.
+        if tool == "cursor" {
+            return Err("accountError.closeClient".into());
+        }
+        for pid in pids {
+            unsafe {
+                libc::kill(pid, libc::SIGTERM);
+            }
+        }
+        for _ in 0..100 {
+            if running()?.is_empty() {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        Err("accountError.closeClient".into())
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        let _ = (tool, name);
+        Err("accountError.unavailable".into())
+    }
 }
 
 #[cfg(test)]

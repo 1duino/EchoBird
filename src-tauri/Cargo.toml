@@ -68,6 +68,10 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 
 # Crypto (API Key encryption)
 aes-gcm = "0.10"
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
+pbkdf2 = "0.12"
+sha1 = "0.10"
 hmac = "0.12"
 sha2 = "0.10"
 hex = "0.4"
@@ -107,6 +111,9 @@ zstd = "0.13.3"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = "5.16"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_System_Com", "Win32_UI_Shell", "Win32_Security_Cryptography"] }

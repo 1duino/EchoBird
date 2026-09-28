@@ -1,8 +1,9 @@
 //! Grok Bot 0.61 native account catalog (separate from Grok Build).
-use super::cursor_auth::{cipher, claims, decrypt, encrypt, identity, read, write, LoginFlow};
+use super::cursor_auth::{
+    cipher, claims, decrypt, encrypt, identity, read, write, Cipher, LoginFlow,
+};
 pub use super::cursor_auth::{Account, LoginStart};
 use super::cursor_usage::{self, Usage};
-use aes_gcm::Aes256Gcm;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
@@ -47,12 +48,7 @@ fn store_path() -> Result<PathBuf, String> {
         .ok_or("accountError.home")?
         .join(".echobird/grokbot-accounts.json"))
 }
-fn summary(
-    id: &str,
-    row: &Row,
-    active: Option<&str>,
-    cipher: &Aes256Gcm,
-) -> Result<Account, String> {
+fn summary(id: &str, row: &Row, active: Option<&str>, cipher: &Cipher) -> Result<Account, String> {
     let token = decrypt(
         cipher,
         row.get(ACCESS).ok_or("accountError.invalidAccount")?,
@@ -129,14 +125,14 @@ fn load_store(path: &Path, current: &Catalog) -> Result<Store, String> {
         })
         .collect())
 }
-fn selected_team(row: &Row, key: &Aes256Gcm) -> Result<Option<u64>, String> {
+fn selected_team(row: &Row, key: &Cipher) -> Result<Option<u64>, String> {
     row.get(TEAM)
         .map(|s| {
             decrypt(key, s).and_then(|s| s.parse::<u64>().map_err(|_| "accountError.format".into()))
         })
         .transpose()
 }
-fn sync_native(store: &mut Store, current: &Catalog, key: &Aes256Gcm) -> Result<(), String> {
+fn sync_native(store: &mut Store, current: &Catalog, key: &Cipher) -> Result<(), String> {
     for (id, saved) in store.iter_mut().filter(|(_, saved)| saved.applied) {
         if let Some(row) = current
             .accounts
@@ -225,7 +221,7 @@ pub async fn refresh(id: &str) -> Result<Usage, String> {
     write(&path, &store)?;
     Ok(usage)
 }
-fn login_row(value: &Value, cipher: &Aes256Gcm) -> Result<(String, Row), String> {
+fn login_row(value: &Value, cipher: &Cipher) -> Result<(String, Row), String> {
     let access = value["accessToken"]
         .as_str()
         .ok_or("accountError.authResponse")?;
@@ -330,9 +326,9 @@ async fn close_app() -> Result<(), String> {
         }
         Ok(())
     }
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
-        Err("accountError.keychain".into())
+        super::cursor_auth::close_client("grokbot", "Grok Bot").await
     }
 }
 
@@ -346,8 +342,38 @@ mod tests {
     };
     use std::fs;
 
-    fn key() -> Aes256Gcm {
-        Aes256Gcm::new_from_slice(&[7u8; 32]).unwrap()
+    #[test]
+    fn native_catalog_switch_preserves_accounts_with_each_os_cipher() {
+        for key in super::super::electron_storage::test_ciphers() {
+            let mut document = json!({"unrelated":"preserved"});
+            for subject in ["a", "b", "a"] {
+                let (id, row) = login_row(&json!({"accessToken":token(subject),"refreshToken":"refresh","selectedTeamId":42}), &key).unwrap();
+                let saved = Saved {
+                    row,
+                    applied: true,
+                    usage: None,
+                };
+                apply(&mut document, &id, &saved).unwrap();
+                let current = catalog(&document).unwrap();
+                assert!(
+                    summary(&id, &current.accounts[&id], current.active.as_deref(), &key)
+                        .unwrap()
+                        .active
+                );
+                assert_eq!(
+                    selected_team(&current.accounts[&id], &key).unwrap(),
+                    Some(42)
+                );
+            }
+            assert_eq!(catalog(&document).unwrap().accounts.len(), 2);
+            assert_eq!(document["unrelated"], "preserved");
+        }
+    }
+
+    fn key() -> Cipher {
+        Cipher::Gcm(Box::new(
+            aes_gcm::Aes256Gcm::new_from_slice(&[7u8; 32]).unwrap(),
+        ))
     }
     fn token(subject: &str) -> String {
         format!(
@@ -518,6 +544,15 @@ mod tests {
         assert!(paths.no_model_config);
         assert!(paths.command.is_empty());
         assert!(paths.api_protocol.is_empty());
+        assert!(!paths.paths.win32.as_ref().unwrap().is_empty());
+        assert!(!paths.paths.darwin.as_ref().unwrap().is_empty());
+        assert!(paths
+            .paths
+            .linux
+            .as_ref()
+            .unwrap()
+            .iter()
+            .any(|p| p == "/opt/Grok Bot/grok-bot"));
         let install: Value =
             serde_json::from_str(include_str!("../../../docs/api/tools/install/grokbot.json"))
                 .unwrap();
@@ -528,7 +563,6 @@ mod tests {
         assert!(index["ids"].as_array().unwrap().contains(&json!("grokbot")));
     }
 
-    #[cfg(windows)]
     #[test]
     #[ignore = "Read-only verification against the user's installed Grok Bot; never writes credentials"]
     fn installed_client_credentials_round_trip_read_only() {
@@ -544,15 +578,17 @@ mod tests {
         }
         let paths: crate::models::tool::PathsConfig =
             serde_json::from_str(include_str!("../../../tools/grokbot/paths.json")).unwrap();
+        #[cfg(windows)]
         assert!(paths
             .paths
             .win32
             .unwrap()
             .iter()
             .any(|p| super::super::tool_manager::expand_path(p).is_file()));
+        #[cfg(not(windows))]
+        assert!(paths.no_model_config);
     }
 
-    #[cfg(windows)]
     #[tokio::test]
     #[ignore = "Queries the installed Grok Bot account's own usage API; no local or remote writes"]
     async fn installed_grok_bot_usage_read_only() {

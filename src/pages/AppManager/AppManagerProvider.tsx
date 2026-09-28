@@ -1,5 +1,4 @@
 import { useCursorAccounts } from './useCursorAccounts';
-import { IS_WINDOWS } from '../../utils/platform';
 import { useDeepSeekAccounts } from './useDeepSeekAccounts';
 import { useGrokAccounts } from './useGrokAccounts';
 import { accountError } from '../../utils/accountError';
@@ -425,7 +424,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
   );
   const grokBotAccounts = useCursorAccounts(
     'grokbot',
-    isActive && selectedTool === 'grokbot' && !!selectedToolData?.installed && IS_WINDOWS,
+    isActive && selectedTool === 'grokbot' && !!selectedToolData?.installed,
     clearGrokBotModel,
     setApplyError
   );
@@ -436,7 +435,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
   );
   const cursorAccounts = useCursorAccounts(
     'cursor',
-    isActive && selectedTool === 'cursor' && !!selectedToolData?.installed && IS_WINDOWS,
+    isActive && selectedTool === 'cursor' && !!selectedToolData?.installed,
     clearCursorModel,
     setApplyError
   );

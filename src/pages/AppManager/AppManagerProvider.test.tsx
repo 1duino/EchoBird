@@ -8,7 +8,7 @@ import { AppManagerProvider } from './AppManagerProvider';
 import { useAppManager } from './context';
 
 vi.hoisted(() => vi.stubGlobal('__APP_EDITION__', 'full'));
-vi.mock('../../utils/platform', () => ({ IS_WINDOWS: true }));
+vi.mock('../../utils/platform', () => ({ IS_WINDOWS: false }));
 vi.mock('../../hooks/useI18n', () => {
   const t = (key: string) => key;
   return { useI18n: () => ({ t, locale: 'en' }) };

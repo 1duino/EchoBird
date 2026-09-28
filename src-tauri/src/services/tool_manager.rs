@@ -994,6 +994,28 @@ fn scan_macos_applications(hints: &InstallHints) -> Option<String> {
     None
 }
 
+#[cfg(any(target_os = "linux", test))]
+fn desktop_exec_program(exec: &str) -> Option<String> {
+    let mut result = String::new();
+    let mut quoted = false;
+    let mut escaped = false;
+    for ch in exec.trim_start().chars() {
+        if escaped {
+            result.push(ch);
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else if ch == '"' {
+            quoted = !quoted;
+        } else if ch.is_whitespace() && !quoted {
+            break;
+        } else {
+            result.push(ch);
+        }
+    }
+    (!quoted && !escaped && !result.is_empty()).then_some(result)
+}
+
 #[cfg(target_os = "linux")]
 fn scan_linux_desktop(hints: &InstallHints) -> Option<String> {
     if hints.linux_desktop_names.is_empty() {
@@ -1060,14 +1082,22 @@ fn scan_linux_desktop(hints: &InstallHints) -> Option<String> {
                 continue;
             }
             // Exec= often contains %U/%F field codes — keep only the command itself.
-            let exec_clean = exec
-                .split_whitespace()
-                .next()
-                .unwrap_or("")
-                .trim_matches('"');
-            if !exec_clean.is_empty() {
-                log::info!("[InstallHints] .desktop hit: {} → {}", name, exec_clean);
-                return Some(exec_clean.to_string());
+            if let Some(program) = desktop_exec_program(&exec) {
+                let executable = if Path::new(&program).is_absolute() {
+                    PathBuf::from(program)
+                } else if let Ok(path) = which::which(&program) {
+                    path
+                } else {
+                    continue;
+                };
+                if executable.is_file() {
+                    log::info!(
+                        "[InstallHints] .desktop hit: {} → {}",
+                        name,
+                        executable.display()
+                    );
+                    return Some(executable.to_string_lossy().into_owned());
+                }
             }
         }
     }
@@ -2642,5 +2672,24 @@ mod tests {
         assert!(!is_windows_exe("C:\\Program Files\\ZCode\\resources.dll"));
         // No extension at all.
         assert!(!is_windows_exe("C:\\Program Files\\ZCode\\zcode"));
+    }
+
+    #[test]
+    fn linux_desktop_exec_preserves_spaces_and_ignores_field_codes() {
+        use super::desktop_exec_program;
+        assert_eq!(
+            desktop_exec_program(r#""/opt/Grok Bot/grok-bot" %U"#).as_deref(),
+            Some("/opt/Grok Bot/grok-bot")
+        );
+        assert_eq!(
+            desktop_exec_program("cursor --no-sandbox %F").as_deref(),
+            Some("cursor")
+        );
+        assert_eq!(
+            desktop_exec_program(r"/opt/Grok\ Bot/grok-bot %U").as_deref(),
+            Some("/opt/Grok Bot/grok-bot")
+        );
+        assert!(desktop_exec_program("\"unterminated").is_none());
+        assert!(desktop_exec_program(" ").is_none());
     }
 }

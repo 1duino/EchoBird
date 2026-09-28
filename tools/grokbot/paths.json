@@ -11,11 +11,11 @@
     "paths": {
         "win32": ["%LOCALAPPDATA%\\Programs\\Grok Bot\\Grok Bot.exe"],
         "darwin": ["/Applications/Grok Bot.app/Contents/MacOS/Grok Bot"],
-        "linux": []
+        "linux": ["/opt/Grok Bot/grok-bot"]
     },
     "installHints": {
         "windowsDisplayNamePrefixes": ["Grok Bot"],
         "macosAppName": "Grok Bot",
-        "linuxDesktopNames": ["Grok Bot"]
+        "linuxDesktopNames": ["Grok Bot", "grok-bot"]
     }
 }

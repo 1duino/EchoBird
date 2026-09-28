@@ -31,6 +31,11 @@ runtime. Prettier governs the frontend JSON/TS; rustfmt governs `src-tauri/`.
   automatic actions, new interaction flows, or new frameworks unless the
   task requires them. State any necessary behavioral difference and its reason
   before implementing it.
+- Evaluate Windows, macOS, and Linux for every new integration. Separate
+  vendor availability from EchoBird implementation gaps; do not silently
+  restrict an existing cross-platform client to Windows. Verify native paths,
+  credential storage, process handling, and installation on supported systems,
+  and state any platform limitation before release.
 - If existing implementations disagree, follow the user's confirmed behavior
   and these conventions. Do not silently choose one and call it consistent.
   Ask a focused question only when a product decision remains unresolved.

@@ -4,13 +4,17 @@
     "homepage": "https://cursor.com/",
     "docs": "https://cursor.com/",
     "kind": "ide",
-    "platforms": ["windows", "macos", "linux"],
+    "platforms": [
+        "windows",
+        "macos",
+        "linux"
+    ],
     "install": {
         "windows_winget": "winget install --id Anysphere.Cursor --accept-package-agreements --accept-source-agreements",
         "windows_download": "Open https://cursor.com/download in the browser, click the Windows installer. Saves to %USERPROFILE%\\Downloads by default.",
         "macos_download": "Open https://cursor.com/download in the browser, click the macOS download (.dmg). Saves to ~/Downloads by default.",
         "linux_download": "Open https://cursor.com/download and select the .deb, .rpm, or AppImage for x64 or ARM64. Install a downloaded .deb with apt or .rpm with the distro package manager. For AppImage, save under ~/Applications, make it executable, and run it.",
-        "note": "GUI IDE — VS Code fork by Anysphere. AI features and model selection are built into the app; EchoBird does not switch its model. Windows: EchoBird supports multiple Cursor accounts for the default user-data directory; launch Cursor once before adding accounts. Switching closes and relaunches Cursor."
+        "note": "GUI IDE. AI features and model selection are built into the app; EchoBird does not switch its model. EchoBird supports multiple accounts in the default user-data directory on Windows, macOS and Linux. Launch Cursor once to initialize its database and system credential store. On Linux, save your work and close Cursor before switching; on Windows/macOS, EchoBird requests a normal quit and aborts if the editor remains open. The system keychain/keyring must be accessible."
     },
     "install_flow": {
         "summary": "winget if available → otherwise download installer → user runs the wizard or AppImage",
@@ -31,7 +35,10 @@
         ]
     },
     "network_requirements": {
-        "test_urls": ["https://cursor.com", "https://download.cursor.sh"],
+        "test_urls": [
+            "https://cursor.com",
+            "https://download.cursor.sh"
+        ],
         "mirrors": {}
     }
 }

@@ -1,9 +1,10 @@
-//! Cursor 3.22 account state in the default Windows user-data directory.
+//! Cursor 3.22 account state in the default user-data directory.
 //! Only authentication keys and team selection are changed, in one SQLite transaction.
-use super::cursor_auth::{cipher, claims, decrypt, encrypt, identity, read, write, LoginFlow};
+use super::cursor_auth::{
+    cipher, claims, decrypt, encrypt, identity, read, write, Cipher, LoginFlow,
+};
 pub use super::cursor_auth::{Account, LoginStart};
 use super::cursor_usage::{self, Usage};
-use aes_gcm::Aes256Gcm;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -140,7 +141,7 @@ fn summary(credentials: &Credentials, active: Option<&str>) -> Result<Account, S
         usage: None,
     })
 }
-fn saved(credentials: &Credentials, key: &Aes256Gcm, applied: bool) -> Result<Saved, String> {
+fn saved(credentials: &Credentials, key: &Cipher, applied: bool) -> Result<Saved, String> {
     Ok(Saved {
         session: encrypt(
             key,
@@ -150,7 +151,7 @@ fn saved(credentials: &Credentials, key: &Aes256Gcm, applied: bool) -> Result<Sa
         usage: None,
     })
 }
-fn credentials(id: &str, saved: &Saved, key: &Aes256Gcm) -> Result<Credentials, String> {
+fn credentials(id: &str, saved: &Saved, key: &Cipher) -> Result<Credentials, String> {
     let value: Credentials =
         serde_json::from_str(&decrypt(key, &saved.session)?).map_err(|_| "accountError.format")?;
     if summary(&value, None)?.id != id {
@@ -158,11 +159,7 @@ fn credentials(id: &str, saved: &Saved, key: &Aes256Gcm) -> Result<Credentials, 
     }
     Ok(value)
 }
-fn load_store(
-    path: &Path,
-    current: Option<&Credentials>,
-    key: &Aes256Gcm,
-) -> Result<Store, String> {
+fn load_store(path: &Path, current: Option<&Credentials>, key: &Cipher) -> Result<Store, String> {
     if path.exists() {
         return read(path);
     }
@@ -175,7 +172,7 @@ fn load_store(
 fn sync_native(
     store: &mut Store,
     current: Option<&Credentials>,
-    key: &Aes256Gcm,
+    key: &Cipher,
 ) -> Result<(), String> {
     if let Some(current) = current {
         if let Some(entry) = store
@@ -389,21 +386,17 @@ async fn close_app() -> Result<(), String> {
         }
         Ok(())
     }
-    #[cfg(not(windows))]
+    #[cfg(unix)]
     {
-        Err("accountError.keychain".into())
+        super::cursor_auth::close_client("cursor", "Cursor").await
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aes_gcm::KeyInit;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 
-    fn key() -> Aes256Gcm {
-        Aes256Gcm::new_from_slice(&[9u8; 32]).unwrap()
-    }
     fn login(sub: &str, team: Option<u64>) -> Credentials {
         login_credentials(&json!({"accessToken":format!("header.{}.signature", URL_SAFE_NO_PAD.encode(json!({"sub":sub,"email":format!("{sub}@example.test")}).to_string())), "refreshToken":format!("refresh-{sub}"), "selectedTeamId":team})).unwrap()
     }
@@ -428,7 +421,6 @@ mod tests {
         assert_eq!(summary(&login, None).unwrap().email, "profile@example.test");
     }
 
-    #[cfg(windows)]
     #[tokio::test]
     #[ignore = "Queries the installed Cursor account's own usage API; no local or remote writes"]
     async fn installed_cursor_usage_read_only() {
@@ -441,7 +433,6 @@ mod tests {
         assert!(usage.plan.is_some());
     }
 
-    #[cfg(windows)]
     #[tokio::test]
     #[ignore = "Reads installed Cursor and its own profile API; mutations occur only in an in-memory database"]
     async fn installed_cursor_credentials_round_trip_read_only() {
@@ -573,7 +564,11 @@ mod tests {
     }
     #[test]
     fn encrypted_store_sync_preserves_fresh_logins_and_deletions() {
-        let key = key();
+        for key in super::super::electron_storage::test_ciphers() {
+            verify_store_sync(key);
+        }
+    }
+    fn verify_store_sync(key: Cipher) {
         let mut login = login("a", None);
         let id = identity(&login.access_token).unwrap();
         let mut store = Store::from([(id.clone(), saved(&login, &key, false).unwrap())]);

@@ -1,5 +1,4 @@
 import { CursorAccountSection } from './CursorAccountSection';
-import { IS_WINDOWS } from '../../utils/platform';
 import { AccountSectionButton, AccountSectionRow } from './AccountSectionPrimitives';
 import { DeepSeekAccountSection } from './DeepSeekAccountSection';
 import { GrokAccountSection } from './GrokAccountSection';
@@ -938,7 +937,7 @@ export const AppManagerPanel: React.FC = () => {
                 </a>
               </div>
             )
-          ) : (selectedTool === 'grokbot' || selectedTool === 'cursor') && IS_WINDOWS ? (
+          ) : selectedTool === 'grokbot' || selectedTool === 'cursor' ? (
             <CursorAccountSection tool={selectedTool} />
           ) : selectedToolData.noModelConfig ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
