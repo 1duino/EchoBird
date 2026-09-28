@@ -368,6 +368,24 @@ pub(super) fn test_ciphers() -> Vec<Cipher> {
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "Requires the isolated native credential fixture configured by CI"]
+    fn reads_native_os_credential_fixture() {
+        assert_eq!(
+            std::env::var("ECHOBIRD_NATIVE_CREDENTIAL_TEST").as_deref(),
+            Ok("1")
+        );
+        let key = cipher(Path::new("EchoBird Native Storage Test")).unwrap();
+        let expected = if cfg!(target_os = "macos") {
+            "djEwCTpDbc8erpLeOOa4QeXX3hTJLw1RJaPhtqn8lNRG/ug="
+        } else {
+            "djExfP9LPCqfuh6gHB6yEZQaljVJQLFbyL1I9lBu1VrKmpA="
+        };
+        assert_eq!(decrypt(&key, expected).unwrap(), "native-token-中文");
+        assert_eq!(encrypt(&key, "native-token-中文").unwrap(), expected);
+    }
+
     #[test]
     fn native_macos_and_linux_vectors_are_compatible_in_both_directions() {
         // Independently generated with Python's cryptography AES-CBC and PBKDF2.

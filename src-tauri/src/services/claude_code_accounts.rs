@@ -158,7 +158,7 @@ fn write_credentials(value: &Value) -> Result<(), String> {
         if !output.status.success() {
             return Err("accountError.keychain".to_string());
         }
-        return Ok(());
+        Ok(())
     }
     #[cfg(not(target_os = "macos"))]
     write_json(&config_dir()?.join(".credentials.json"), value)

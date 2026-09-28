@@ -87,7 +87,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf gnome-keyring libsecret-tools
 
       - name: Format check
         run: cargo fmt --check --manifest-path src-tauri/Cargo.toml
@@ -97,6 +97,32 @@ jobs:
 
       - name: Test
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Verify macOS native credential storage
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          ECHOBIRD_NATIVE_CREDENTIAL_TEST: '1'
+        run: |
+          set -euo pipefail
+          account='EchoBird Native Storage Test'
+          service="$account Safe Storage"
+          trap 'security delete-generic-password -s "$service" -a "$account" >/dev/null 2>&1 || true' EXIT
+          security add-generic-password -s "$service" -a "$account" -w 'test-safe-storage-password' -T /usr/bin/security
+          cargo test --manifest-path src-tauri/Cargo.toml reads_native_os_credential_fixture -- --ignored
+
+      - name: Verify Linux native credential storage
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          ECHOBIRD_NATIVE_CREDENTIAL_TEST: '1'
+        run: |
+          dbus-run-session -- bash -euo pipefail <<'SCRIPT'
+          printf 'fixture-keyring-password' | gnome-keyring-daemon --unlock --components=secrets
+          trap 'secret-tool clear application "EchoBird Native Storage Test" >/dev/null 2>&1 || true' EXIT
+          printf 'test-safe-storage-password' | secret-tool store --label='EchoBird native credential test' application 'EchoBird Native Storage Test'
+          cargo test --manifest-path src-tauri/Cargo.toml reads_native_os_credential_fixture -- --ignored
+          SCRIPT
 
       - name: Security audit (cargo)
         run: |
