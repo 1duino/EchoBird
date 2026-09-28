@@ -80,6 +80,11 @@ impl ProcessManager {
         if tool_id == "claudecode" {
             Self::ensure_claude_onboarding();
         }
+        if tool_id == "minimaxdesktop"
+            && crate::services::tool_manager::get_tool_exe_path(tool_id).is_none()
+        {
+            return Err("MiniMax Desktop is not installed".into());
+        }
 
         // Desktop apps load provider config at startup, so switching the model
         // while the app is open silently fails. Restore "launch = kill +
@@ -1090,6 +1095,40 @@ impl ProcessManager {
         // Drop our tracked PID so is_tool_running stays honest; the image-name
         // kill below terminates that process anyway.
         self.processes.remove(tool_id);
+
+        // The CN and Global builds have the same process name, so restarting
+        // one edition must match its executable path rather than killing both.
+        if tool_id == "minimaxdesktop" {
+            let Some(path) = crate::services::tool_manager::get_tool_exe_path(tool_id) else {
+                return false;
+            };
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                return Command::new("powershell")
+                    .args(["-NoProfile", "-NonInteractive", "-Command", "$stopped=$false; Get-CimInstance Win32_Process -Filter \"Name = 'MiniMax Code.exe'\" | Where-Object { $_.ExecutablePath -eq $env:ECHOBIRD_MINIMAX_EXE } | ForEach-Object { taskkill /PID $_.ProcessId /T /F; if($LASTEXITCODE -eq 0){$stopped=$true} }; if($stopped){exit 0}else{exit 1}"])
+                    .env("ECHOBIRD_MINIMAX_EXE", path)
+                    .creation_flags(0x08000000)
+                    .output().is_ok_and(|out|out.status.success());
+            }
+            #[cfg(not(windows))]
+            {
+                let escaped: String = path
+                    .chars()
+                    .flat_map(|c| {
+                        if "\\.^$|?*+()[]{}".contains(c) {
+                            vec!['\\', c]
+                        } else {
+                            vec![c]
+                        }
+                    })
+                    .collect();
+                return Command::new("pkill")
+                    .args(["-f", &format!("^{escaped}($| )")])
+                    .output()
+                    .is_ok_and(|out| out.status.success());
+            }
+        }
 
         let names = crate::services::tool_manager::get_tool_process_names(tool_id);
         let mut killed = false;

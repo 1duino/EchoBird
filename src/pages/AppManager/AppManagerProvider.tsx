@@ -532,11 +532,21 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
       });
 
       if (result?.success) {
+        const sharedMiniMax = ['minimaxcode', 'minimaxdesktop'];
         setDetectedTools((prev) =>
           prev.map((t) =>
-            t.id === toolId ? { ...t, activeModel: model.modelId || model.internalId } : t
+            t.id === toolId || (sharedMiniMax.includes(toolId) && sharedMiniMax.includes(t.id))
+              ? { ...t, activeModel: model.modelId || model.internalId }
+              : t
           )
         );
+        if (sharedMiniMax.includes(toolId)) {
+          setToolModelConfig((prev) => ({
+            ...prev,
+            minimaxcode: model.internalId,
+            minimaxdesktop: model.internalId,
+          }));
+        }
         return true;
       } else {
         console.error('[AppManager] Failed to apply model:', result?.message);

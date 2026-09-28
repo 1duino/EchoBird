@@ -12,6 +12,7 @@ mod kilo;
 mod kimicode;
 mod mimocode;
 mod mimodesktop;
+pub(crate) mod minimaxcode;
 mod omp;
 mod openclaw;
 mod opencode;
@@ -278,6 +279,7 @@ pub async fn apply_model_to_tool(tool_id: &str, model_info: ModelInfo) -> ApplyR
         // own config at ~/.config/mimocode/mimocode.json(c).
         "mimocode" => return apply_mimocode(&model_info),
         "mimodesktop" => return mimodesktop::apply(&model_info),
+        "minimaxcode" | "minimaxdesktop" => return minimaxcode::apply(&model_info),
         "kimidesktop" => return apply_kimidesktop(&model_info),
 
         // Kilo Code (Kilo fork of OpenCode): same provider schema,
@@ -381,6 +383,9 @@ pub async fn restore_tool_to_official(tool_id: &str) -> ApplyResult {
     if tool_id == "mimodesktop" {
         return mimodesktop::restore();
     }
+    if matches!(tool_id, "minimaxcode" | "minimaxdesktop") {
+        return minimaxcode::restore();
+    }
     if tool_id == "kimidesktop" {
         return restore_kimidesktop_to_official();
     }
@@ -455,6 +460,7 @@ pub async fn get_tool_model_info(tool_id: &str) -> Option<ModelInfo> {
         "opencode" | "opencodedesktop" => return read_opencode(),
         "mimocode" => return read_mimocode(),
         "mimodesktop" => return mimodesktop::read(),
+        "minimaxcode" | "minimaxdesktop" => return minimaxcode::read(),
         "kimidesktop" => return read_kimidesktop(),
         "kilo" => return read_kilo(),
         "openscience" => return read_openscience(),

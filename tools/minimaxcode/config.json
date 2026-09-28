@@ -1,0 +1,5 @@
+{
+    "configFile": "~/.minimax/config.yaml",
+    "format": "yaml",
+    "custom": true
+}

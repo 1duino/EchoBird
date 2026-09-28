@@ -42,6 +42,14 @@ static BUNDLED: BundledAssets = BundledAssets {
     install_index_json: include_str!("../../docs/api/tools/install/index.json"),
     install_refs: &[
         (
+            "minimaxcode",
+            include_str!("../../docs/api/tools/install/minimaxcode.json"),
+        ),
+        (
+            "minimaxdesktop",
+            include_str!("../../docs/api/tools/install/minimaxdesktop.json"),
+        ),
+        (
             "claudecode",
             include_str!("../../docs/api/tools/install/claudecode.json"),
         ),

@@ -1194,6 +1194,7 @@ async fn build_system_prompt(request: &AgentRequest, ssh_pool: &SSHPool) -> Stri
         | Kilo Code | Kilo | `@kilocode/cli` | kilo |\n\
         | Kimi CLI | Moonshot AI | `@moonshot-ai/kimi-code` | kimi |\n\
         | Kimi Desktop (Kimi 桌面端) | Moonshot AI | none; official desktop installer | Kimi Code.exe / Kimi Code.app |\n\
+        MiniMax has two entries: MiniMax CLI (`minimaxcode`, command mcode) and MiniMax Desktop / MiniMax 桌面端 (`minimaxdesktop`). Before installing Desktop, ask the user to choose China or international unless they already specified the edition; follow that edition in the embedded minimaxdesktop reference. Both editions share the same app icon, executable name and native API config, but can coexist at separate paths. EchoBird supports API model switching only for MiniMax; leave account login to the native client. If the request only says MiniMax Code, resolve CLI/Desktop from context or ask before installing.\n\
         When the user says 'install Codex', install `@openai/codex`. Do NOT install Claude Code.\n\
         When the user says 'install Claude Code', install via `irm https://claude.ai/install.ps1 | iex` (Windows) or `curl -fsSL https://claude.ai/install.sh | bash`. Do NOT install Codex.\n\
         When the user says 'install OpenCode', follow the `opencode` reference and install v2 (`@opencode/cli`, or the official v2 installer). Do NOT install Codex or Claude Code.\n\
@@ -1442,6 +1443,8 @@ enum AgentTarget {
     OpenCode,
     MiMoCode,
     MiMoDesktop,
+    MiniMaxCode,
+    MiniMaxDesktop,
     KiloCode,
     KimiCode,
     KimiDesktop,
@@ -1456,6 +1459,8 @@ impl AgentTarget {
             Self::OpenCode => "OpenCode",
             Self::MiMoCode => "MiMo CLI (MiMo Code)",
             Self::MiMoDesktop => "MiMo Desktop (MiMo 桌面端)",
+            Self::MiniMaxCode => "MiniMax CLI",
+            Self::MiniMaxDesktop => "MiniMax Desktop (MiniMax 桌面端)",
             Self::KiloCode => "Kilo Code",
             Self::KimiCode => "Kimi CLI",
             Self::KimiDesktop => "Kimi Desktop (Kimi 桌面端)",
@@ -1469,6 +1474,8 @@ impl AgentTarget {
             Self::OpenCode => "npm install -g @opencode/cli  (or  curl -fsSL https://opencode.ai/v2/install | bash)",
             Self::MiMoCode => "npm install -g @mimo-ai/cli  (or  curl -fsSL https://mimo.xiaomi.com/install | bash)",
             Self::MiMoDesktop => "Follow the embedded mimodesktop install reference for the official Xiaomi MiMo desktop installer.",
+            Self::MiniMaxCode => "Follow the embedded minimaxcode install reference; package @minimax-ai/code, command mcode.",
+            Self::MiniMaxDesktop => "Follow the embedded minimaxdesktop install reference; ask China or international before installation unless already specified.",
             Self::KiloCode => "npm install -g @kilocode/cli  (or  curl -fsSL https://kilo.ai/cli/install | bash)",
             Self::KimiCode => "npm install -g @moonshot-ai/kimi-code  (or  curl -fsSL https://code.kimi.com/kimi-code/install.sh | bash)",
             Self::KimiDesktop => "Follow the embedded kimidesktop install reference for the official Kimi desktop installer.",
@@ -1504,6 +1511,19 @@ fn detect_user_intent(messages: &[Message]) -> Option<AgentTarget> {
         // a generic "claude" mention.
         if text.contains("openclaw") || text.contains("open claw") || text.contains("openclaude") {
             return Some(AgentTarget::OpenClaw);
+        }
+        if text.contains("minimaxdesktop")
+            || text.contains("minimax desktop")
+            || text.contains("minimax 桌面")
+            || text.contains("minimax桌面")
+        {
+            return Some(AgentTarget::MiniMaxDesktop);
+        }
+        if text.contains("minimaxcode")
+            || text.contains("minimax cli")
+            || text.contains("minimax code cli")
+        {
+            return Some(AgentTarget::MiniMaxCode);
         }
         // Desktop first: its shared config path can also mention mimocode.
         if text.contains("mimodesktop")
@@ -1580,12 +1600,20 @@ fn detect_command_target(command: &str) -> Option<AgentTarget> {
                 || cmd.contains("install.ps1")
                 || cmd.contains("| bash")
                 || cmd.contains("| sh")))
-        || cmd.contains("kimi-code/desktop/download/");
+        || cmd.contains("kimi-code/desktop/download/")
+        || cmd.contains("/minimax-agent-prod/release/")
+        || cmd.contains("/minimax-agent/release/");
     if !is_install_op {
         return None;
     }
 
     // Order matters: check the more-specific package strings first.
+    if cmd.contains("/minimax-agent-prod/release/") || cmd.contains("/minimax-agent/release/") {
+        return Some(AgentTarget::MiniMaxDesktop);
+    }
+    if cmd.contains("@minimax-ai/code") || cmd.contains("filecdn.minimax.chat/public/install.") {
+        return Some(AgentTarget::MiniMaxCode);
+    }
     if cmd.contains("@anthropic-ai/claude-code") || cmd.contains("claude.ai/install") {
         return Some(AgentTarget::ClaudeCode);
     }
@@ -1686,6 +1714,33 @@ mod install_intent_tests {
             role: "user".into(),
             content: MessageContent::Text(text.into()),
         }]
+    }
+
+    #[test]
+    fn minimax_desktop_editions_share_one_target_separate_from_cli() {
+        let cli = "npm install -g @minimax-ai/code";
+        let desktop_commands = [
+            "https://filecdn.minimax.chat/public/minimax-agent/release/MiniMax%20Code%20Setup.exe",
+            "https://file.cdn.minimax.io/public/minimax-agent/release/MiniMax%20Code%20Setup.exe",
+            "https://filecdn.minimax.chat/public/minimax-agent-prod/release/MiniMax%20Code%20Setup.exe",
+        ];
+        for name in [
+            "minimaxdesktop",
+            "MiniMax 桌面端",
+            "MiniMax桌面端",
+            "MiniMax Desktop",
+            "MiniMax Desktop 国内版",
+            "MiniMax 桌面端（国际版）",
+        ] {
+            let messages = request(&format!("Install {name}"));
+            assert!(validate_install_intent(cli, &messages).is_err());
+            for command in desktop_commands {
+                assert!(validate_install_intent(command, &messages).is_ok());
+                assert!(validate_install_intent(command, &request("Install MiniMax CLI")).is_err());
+            }
+        }
+        assert!(validate_install_intent(cli, &request("Install MiniMax CLI")).is_ok());
+        assert_eq!(detect_user_intent(&request("Install MiniMax Code")), None);
     }
 
     #[test]

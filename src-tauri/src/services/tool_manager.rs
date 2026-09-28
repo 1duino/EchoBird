@@ -1143,8 +1143,39 @@ fn match_installed_msix(
     None
 }
 
+// Both MiniMax editions share one entry and the native model config. Respect
+// the existing configured path order when both editions are installed.
+fn find_minimax_desktop(pc: &PathsConfig) -> Option<String> {
+    let paths = get_platform_paths(&pc.paths);
+    let hint = scan_install_hints(pc);
+    for path in paths.iter().chain(hint.iter()) {
+        let path = expand_path(path);
+        let candidates = if path.is_dir() && path.extension().is_some_and(|ext| ext == "app") {
+            vec![path.join("Contents/MacOS/MiniMax Code")]
+        } else if path.is_dir() {
+            filenames_of(&paths)
+                .into_iter()
+                .map(|name| path.join(name))
+                .collect()
+        } else {
+            vec![path]
+        };
+        for candidate in candidates {
+            if candidate.is_file()
+                && super::tool_config_manager::minimaxcode::desktop_region(&candidate).is_some()
+            {
+                return Some(candidate.to_string_lossy().into());
+            }
+        }
+    }
+    None
+}
+
 /// Detect if a tool is installed, returns executable path
 async fn detect_tool(pc: &PathsConfig) -> Option<String> {
+    if pc.name == "MiniMax Desktop" {
+        return find_minimax_desktop(pc);
+    }
     // 0. Built-in tools (always installed)
     if pc.always_installed {
         return Some("built-in".to_string());
@@ -1643,6 +1674,9 @@ pub fn get_tool_start_command(tool_id: &str) -> Option<String> {
 pub fn get_tool_exe_path(tool_id: &str) -> Option<String> {
     let defs = get_definitions();
     let def = defs.iter().find(|d| d.id == tool_id)?;
+    if tool_id == "minimaxdesktop" {
+        return find_minimax_desktop(&def.paths_config);
+    }
     let platform_paths = get_platform_paths(&def.paths_config.paths);
     for p in &platform_paths {
         let expanded = expand_path(p);
@@ -1700,6 +1734,9 @@ pub fn get_tool_exe_path(tool_id: &str) -> Option<String> {
 pub fn get_tool_declared_exe_path(tool_id: &str) -> Option<String> {
     let defs = get_definitions();
     let def = defs.iter().find(|d| d.id == tool_id)?;
+    if tool_id == "minimaxdesktop" {
+        return get_tool_exe_path(tool_id);
+    }
     let platform_paths = get_platform_paths(&def.paths_config.paths);
     for p in &platform_paths {
         let expanded = expand_path(p);
@@ -2388,6 +2425,103 @@ mod tests {
         assert!(super::is_windows_exe(&path));
         assert!(path.to_lowercase().ends_with(r"\xiaomi mimo.exe"), "{path}");
         println!("Detected Xiaomi MiMo Desktop: {path}");
+    }
+
+    #[test]
+    fn minimax_desktop_uses_one_localized_catalog_entry() {
+        let definition: PathsConfig =
+            serde_json::from_str(include_str!("../../../tools/minimaxdesktop/paths.json")).unwrap();
+        let reference: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/api/tools/install/minimaxdesktop.json"
+        ))
+        .unwrap();
+        assert_eq!(definition.name, "MiniMax Desktop");
+        assert_eq!(definition.names.unwrap()["zh-Hans"], "MiniMax 桌面端");
+        assert_eq!(reference["displayName"], "MiniMax Desktop");
+        assert_eq!(reference["id"], "minimaxdesktop");
+    }
+
+    #[test]
+    fn minimax_desktop_honors_path_priority_when_both_editions_exist() {
+        let root =
+            std::env::temp_dir().join(format!("echobird-minimax-paths-{}", uuid::Uuid::new_v4()));
+        let mut definition: PathsConfig =
+            serde_json::from_str(include_str!("../../../tools/minimaxdesktop/paths.json")).unwrap();
+        definition.install_hints = None;
+        let mut paths = Vec::new();
+        for (region, host) in [
+            ("cn", "filecdn.minimax.chat"),
+            ("en", "file.cdn.minimax.io"),
+        ] {
+            let dir = root.join(region);
+            std::fs::create_dir_all(dir.join("resources")).unwrap();
+            let exe = dir.join("MiniMax Code.exe");
+            std::fs::write(&exe, []).unwrap();
+            std::fs::write(
+                dir.join("resources/app-update.yml"),
+                format!("url: https://{host}/public/minimax-agent/release"),
+            )
+            .unwrap();
+            paths.push(exe.to_string_lossy().into_owned());
+        }
+        for _ in 0..2 {
+            definition.paths.win32 = Some(paths.clone());
+            definition.paths.darwin = Some(paths.clone());
+            definition.paths.linux = Some(paths.clone());
+            assert_eq!(
+                super::find_minimax_desktop(&definition),
+                Some(paths[0].clone())
+            );
+            paths.reverse();
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "machine-specific: requires both MiniMax desktop editions installed"]
+    fn real_minimax_desktop_detects_both_editions_with_path_overrides() {
+        let mut definition: PathsConfig =
+            serde_json::from_str(include_str!("../../../tools/minimaxdesktop/paths.json")).unwrap();
+        let global = super::expand_path(&definition.paths.win32.as_ref().unwrap()[0]);
+        let domestic = std::path::PathBuf::from(r"E:\MiniMax Code\MiniMax Code.exe");
+        for (exe, region) in [(global, "en"), (domestic, "cn")] {
+            assert_eq!(
+                super::super::tool_config_manager::minimaxcode::desktop_region(&exe),
+                Some(region)
+            );
+            let path = exe.to_string_lossy().into_owned();
+            super::apply_user_path_overrides(&mut definition, std::slice::from_ref(&path));
+            assert_eq!(super::find_minimax_desktop(&definition), Some(path));
+        }
+    }
+
+    #[test]
+    fn minimax_desktop_resolves_custom_macos_bundle_paths() {
+        let root =
+            std::env::temp_dir().join(format!("echobird-minimax-bundle-{}", uuid::Uuid::new_v4()));
+        let bundle = root.join("MiniMax Code.app");
+        let exe = bundle.join("Contents/MacOS/MiniMax Code");
+        std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(bundle.join("Contents/Resources")).unwrap();
+        std::fs::write(&exe, []).unwrap();
+        std::fs::write(
+            bundle.join("Contents/Resources/app-update.yml"),
+            "url: https://file.cdn.minimax.io/public/minimax-agent/release",
+        )
+        .unwrap();
+        let mut definition: PathsConfig =
+            serde_json::from_str(include_str!("../../../tools/minimaxdesktop/paths.json")).unwrap();
+        definition.install_hints = None;
+        let paths = vec![bundle.to_string_lossy().into_owned()];
+        definition.paths.win32 = Some(paths.clone());
+        definition.paths.darwin = Some(paths.clone());
+        definition.paths.linux = Some(paths);
+        assert_eq!(
+            super::find_minimax_desktop(&definition),
+            Some(exe.to_string_lossy().into_owned())
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[cfg(windows)]

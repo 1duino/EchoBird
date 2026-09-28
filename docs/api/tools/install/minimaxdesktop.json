@@ -1,0 +1,26 @@
+{
+    "id": "minimaxdesktop",
+    "displayName": "MiniMax Desktop",
+    "homepage": "https://agent.minimax.cn/download",
+    "docs": "https://agent.minimax.cn/download",
+    "kind": "desktop_app",
+    "platforms": [
+        "windows",
+        "macos"
+    ],
+    "install": {
+        "china_download_page": "https://agent.minimax.cn/download",
+        "international_download_page": "https://agent.minimax.io/download",
+        "note": "One desktop tool, two regional editions. Ask China or international before installing unless the user already specified it. Use the selected official page for current links and architectures. No official Linux desktop package. EchoBird supports API model switching only; account login stays in the native client."
+    },
+    "install_flow": {
+        "agent_steps": [
+            "Confirm desktop rather than CLI. Ask whether the user wants China or international unless already specified; do not infer the edition from UI language or install both by default.",
+            "Detect OS, architecture and existing installation. Both editions are named MiniMax Code and may share the default path. Check resources/app-update.yml: filecdn.minimax.chat is China; file.cdn.minimax.io is international. Both hosts may use /minimax-agent/ or /minimax-agent-prod/. Do not classify by path alone or silently replace another edition.",
+            "Read the official download page or manifest, resolve the matching Windows installer or macOS Intel/Apple Silicon DMG, verify availability and download to Downloads.",
+            "Windows: use the NSIS per-user installer with Start-Process -FilePath <installer> -ArgumentList /S -WindowStyle Hidden -Wait -PassThru. Verify exit code, executable and regional update channel. Explain conflicts before replacing an opposite edition at that location.",
+            "macOS: mount the matching DMG read-only with hdiutil attach -nobrowse; copy MiniMax Code.app to ~/Applications with ditto; detach; verify the bundle and regional update channel.",
+            "Refresh EchoBird detection. If both editions coexist, use the existing custom scan path priority to select the requested executable. CLI and both desktop editions share API model settings in ~/.minimax/config.yaml. Do not add account login, account switching or account quota setup in EchoBird."
+        ]
+    }
+}

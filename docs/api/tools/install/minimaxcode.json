@@ -1,0 +1,18 @@
+{
+    "id": "minimaxcode",
+    "displayName": "MiniMax CLI",
+    "homepage": "https://github.com/MiniMax-AI/minimax-code",
+    "docs": "https://agent.minimax.io/docs/cli/quick-start",
+    "github": "https://github.com/MiniMax-AI/minimax-code",
+    "install": {
+        "windows": "irm https://filecdn.minimax.chat/public/install.ps1 | iex",
+        "macos_linux": "curl -fsSL https://filecdn.minimax.chat/public/install.sh | bash",
+        "npm": "npm install -g @minimax-ai/code",
+        "note": "Official installer prepares compatible Node.js. Supports native Windows, macOS and glibc Linux/WSL; musl/Alpine installer unsupported. Honor MCODE_INSTALL_DIR; reopen terminal to update PATH. Desktop is a separate download."
+    },
+    "first_run": {
+        "verify": "mcode --version",
+        "config_global": "~/.minimax/config.yaml",
+        "note": "Shares API model config with Desktop. EchoBird supports API model switching only; account login is handled by the native CLI. MINIMAX_DATA_DIR (legacy MAVIS_DATA_DIR) overrides the data directory."
+    }
+}
