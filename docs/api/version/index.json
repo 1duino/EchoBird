@@ -1,6 +1,6 @@
 {
-  "version": "5.7.9",
-  "releaseDate": "2026-09-26",
+  "version": "5.8.0",
+  "releaseDate": "2026-09-28",
   "releaseNotes": "- 新增 MiniMax CLI、MiniMax 桌面端安装与 API 模型切换，桌面安装支持选择国内版或国际版。\n- 新增 Windows、macOS、Linux 下 Cursor、Grok Bot 多账号登录、切换与手动额度刷新，完善 Grok Build 账号管理，修复切换工具时的配置弹窗。\n- 新增 OpenCode Go 额度查询，完善 MiniMax、Kimi Coding、智谱／Z.ai 套餐额度；模型中心显示各周期进度条和重置倒计时，应用桌面紧凑显示短周期与 7 天剩余额度。\n- 修复 WorkBuddy 模型配置兼容性并保留已有模型，补齐 Claude 桌面端 Linux 模型切换，更新 Xiaomi MiMo 模型选项。\n- 应用桌面和模型中心的选中标签新增柔和流动背景，适配日夜主题，并优化账号额度进度条间距。",
   "releaseNotesI18n": {
     "zh-cn": "- 新增 MiniMax CLI、MiniMax 桌面端安装与 API 模型切换，桌面安装支持选择国内版或国际版。\n- 新增 Windows、macOS、Linux 下 Cursor、Grok Bot 多账号登录、切换与手动额度刷新，完善 Grok Build 账号管理，修复切换工具时的配置弹窗。\n- 新增 OpenCode Go 额度查询，完善 MiniMax、Kimi Coding、智谱／Z.ai 套餐额度；模型中心显示各周期进度条和重置倒计时，应用桌面紧凑显示短周期与 7 天剩余额度。\n- 修复 WorkBuddy 模型配置兼容性并保留已有模型，补齐 Claude 桌面端 Linux 模型切换，更新 Xiaomi MiMo 模型选项。\n- 应用桌面和模型中心的选中标签新增柔和流动背景，适配日夜主题，并优化账号额度进度条间距。",
