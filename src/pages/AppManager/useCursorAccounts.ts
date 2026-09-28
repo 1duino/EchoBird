@@ -94,8 +94,9 @@ export function useCursorAccounts(
               result.some((a) => a.id === prev) ? prev : (result.find((a) => a.active)?.id ?? null)
             );
         })
-        .catch((error) => {
-          if (current === generation.current) showError(accountError(error, t));
+        .catch(() => {
+          // Client files may be absent or temporarily unreadable. Keep cached
+          // accounts while browsing; explicit account actions report failures.
         });
     }, 0);
     return () => {
@@ -109,7 +110,7 @@ export function useCursorAccounts(
       pending.current = null;
       if (login) void client.cancel(login.loginId).catch(() => {});
     };
-  }, [client, enabled, showError, t]);
+  }, [client, enabled]);
 
   const select = (id: string | null) => {
     selectionRevision.current += 1;

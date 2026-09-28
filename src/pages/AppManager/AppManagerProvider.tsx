@@ -416,13 +416,16 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     setApplyError
   );
 
+  const selectedToolData = detectedTools.find(
+    (t) => t.id === selectedTool && (!isActive || t.installed === (viewMode === 'desktop'))
+  );
   const clearGrokBotModel = useCallback(
     () => setToolModelConfig((prev) => ({ ...prev, grokbot: null })),
     []
   );
   const grokBotAccounts = useCursorAccounts(
     'grokbot',
-    isActive && selectedTool === 'grokbot' && IS_WINDOWS,
+    isActive && selectedTool === 'grokbot' && !!selectedToolData?.installed && IS_WINDOWS,
     clearGrokBotModel,
     setApplyError
   );
@@ -433,7 +436,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
   );
   const cursorAccounts = useCursorAccounts(
     'cursor',
-    isActive && selectedTool === 'cursor' && IS_WINDOWS,
+    isActive && selectedTool === 'cursor' && !!selectedToolData?.installed && IS_WINDOWS,
     clearCursorModel,
     setApplyError
   );
@@ -454,11 +457,6 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
       [toolId]: modelId,
     }));
   };
-
-  // Get selected tool data
-  const selectedToolData = detectedTools.find(
-    (t) => t.id === selectedTool && (!isActive || t.installed === (viewMode === 'desktop'))
-  );
 
   // Apply model config to backend (internalized from App.tsx).
   // `relayOverride` lets callers (most importantly setClaudeDesktopRelayMode)

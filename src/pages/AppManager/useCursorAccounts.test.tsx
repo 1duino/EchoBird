@@ -209,6 +209,18 @@ describe.each(['grokbot', 'cursor'] as const)('%s account lifecycle', (tool) => 
     expect(client.refresh).toHaveBeenCalledTimes(1);
     expect(state.accounts[0].usage).toEqual(usage);
   });
+  it('keeps cached accounts without a popup when returning to unreadable client data', async () => {
+    await mount();
+    vi.mocked(client.list).mockRejectedValueOnce(new Error('accountError.read'));
+    act(() => renderer.update(<Harness enabled={false} />));
+    act(() => renderer.update(<Harness />));
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(state.accounts).toEqual([account]);
+    expect(showError).not.toHaveBeenCalled();
+    expect(client.refresh).not.toHaveBeenCalled();
+  });
   it('refreshes once while pending without changing selection or switching the client', async () => {
     await mount();
     const waiting = deferred<api.CursorUsage>();
