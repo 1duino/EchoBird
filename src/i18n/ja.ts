@@ -292,6 +292,7 @@ const ja: Partial<Translations> = {
   'toolCat.autoTrading': 'クオンツ分析',
   'toolCat.game': 'ゲーム',
   'toolCat.desktop': 'デスクトップ',
+  'toolCat.cloudAgent': 'クラウドエージェント',
   'toolCat.utility': 'ユーティリティ',
   'toolCat.science': 'サイエンス',
   'agent.modelsTab': 'モデル',
@@ -300,6 +301,7 @@ const ja: Partial<Translations> = {
   'agent.addCurrentAccount': 'アカウントを追加',
   'agent.waitingForBrowser': 'ブラウザ操作を待機中({seconds})',
   'agent.refreshAccount': 'アカウントの使用量を更新',
+  'agent.manusCredits': 'クレジット',
   'agent.refreshAccountFailed': '{email} の使用量更新に失敗しました: {error}',
   'agent.deleteAccountTitle': '保存済みアカウントを削除',
   'agent.deleteAccountConfirm':

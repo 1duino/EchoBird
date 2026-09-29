@@ -4,6 +4,7 @@
 import { create } from 'zustand';
 import * as api from '../api/tauri';
 import type { LocalTool } from '../api/types';
+import { preloadToolIcons } from '../utils/toolIcons';
 
 interface ToolsState {
   detectedTools: LocalTool[];
@@ -12,7 +13,7 @@ interface ToolsState {
   scanTools: () => Promise<void>;
 }
 
-export const useToolsStore = create<ToolsState>((set, _get) => ({
+export const useToolsStore = create<ToolsState>((set, get) => ({
   detectedTools: [],
   isScanning: false,
   setDetectedTools: (tools) =>
@@ -21,10 +22,12 @@ export const useToolsStore = create<ToolsState>((set, _get) => ({
     })),
 
   scanTools: async () => {
+    if (get().isScanning) return;
     set({ isScanning: true });
     try {
       const tools = await api.scanTools();
-      set({ detectedTools: tools });
+      // Publish one complete desktop; keep the previous icons visible during refresh.
+      set({ detectedTools: await preloadToolIcons(tools) });
     } catch {
       /* ignore */
     }

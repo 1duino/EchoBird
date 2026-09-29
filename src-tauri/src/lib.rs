@@ -164,6 +164,10 @@ static BUNDLED: BundledAssets = BundledAssets {
             "grokbot",
             include_str!("../../docs/api/tools/install/grokbot.json"),
         ),
+        (
+            "manus",
+            include_str!("../../docs/api/tools/install/manus.json"),
+        ),
     ],
 };
 
@@ -983,6 +987,13 @@ pub fn run() {
             tool_commands::switch_grok_account,
             tool_commands::delete_grok_account,
             tool_commands::refresh_grok_account,
+            tool_commands::list_manus_accounts,
+            tool_commands::start_manus_login,
+            tool_commands::poll_manus_login,
+            tool_commands::cancel_manus_login,
+            tool_commands::switch_manus_account,
+            tool_commands::refresh_manus_account,
+            tool_commands::delete_manus_account,
             tool_commands::list_workbuddy_accounts,
             tool_commands::start_workbuddy_login,
             tool_commands::poll_workbuddy_login,

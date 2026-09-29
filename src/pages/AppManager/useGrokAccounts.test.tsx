@@ -12,6 +12,14 @@ vi.mock('../../api/tauri', () => ({
   switchGrokAccount: vi.fn(),
   deleteGrokAccount: vi.fn().mockResolvedValue(undefined),
   refreshGrokAccount: vi.fn(),
+  listManusAccounts: vi.fn(),
+  startManusLogin: vi.fn(),
+  pollManusLogin: vi.fn(),
+  cancelManusLogin: vi.fn(),
+  switchManusAccount: vi.fn(),
+  deleteManusAccount: vi.fn(),
+  refreshManusAccount: vi.fn(),
+  openExternal: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../../hooks/useI18n', () => {
   const t = (key: string) => key;
@@ -30,8 +38,12 @@ describe('Grok Build account lifecycle', () => {
   const showError = vi.fn();
   let state: ReturnType<typeof useGrokAccounts>;
   let renderer: ReactTestRenderer;
-  function Harness({ enabled = true, hasModel = false } = {}) {
-    const result = useGrokAccounts(enabled, hasModel, clearModel, showError);
+  function Harness({
+    enabled = true,
+    hasModel = false,
+    tool = 'grok',
+  }: { enabled?: boolean; hasModel?: boolean; tool?: 'grok' | 'manus' } = {}) {
+    const result = useGrokAccounts(enabled, hasModel, clearModel, showError, tool);
     useLayoutEffect(() => {
       state = result;
     });
@@ -44,9 +56,9 @@ describe('Grok Build account lifecycle', () => {
     });
     return { promise, resolve };
   }
-  async function mount() {
+  async function mount(tool: 'grok' | 'manus' = 'grok') {
     act(() => {
-      renderer = create(<Harness />);
+      renderer = create(<Harness tool={tool} />);
     });
     await act(async () => {
       await vi.runOnlyPendingTimersAsync();
@@ -62,6 +74,7 @@ describe('Grok Build account lifecycle', () => {
     });
     vi.mocked(api.pollGrokLogin).mockResolvedValue(account);
     vi.mocked(api.refreshGrokAccount).mockResolvedValue(account);
+    vi.mocked(api.cancelManusLogin).mockResolvedValue(undefined);
   });
   afterEach(() => {
     act(() => renderer?.unmount());
@@ -161,5 +174,57 @@ describe('Grok Build account lifecycle', () => {
       await operation;
     });
     expect(state.accounts[0].plan).toBe('SuperGrok');
+  });
+  it('saves the already logged-in Manus account without opening a browser or polling', async () => {
+    const manus = { ...account, credits: null };
+    vi.mocked(api.listManusAccounts).mockResolvedValue([manus]);
+    vi.mocked(api.startManusLogin).mockResolvedValue({
+      loginId: '',
+      expiresAt: 0,
+      verificationUri: '',
+      account: manus,
+    });
+    await mount('manus');
+    await act(async () => state.add());
+    expect(state.selectedId).toBe(manus.id);
+    expect(api.openExternal).not.toHaveBeenCalled();
+    expect(api.pollManusLogin).not.toHaveBeenCalled();
+    expect(api.cancelManusLogin).not.toHaveBeenCalled();
+    expect(api.refreshManusAccount).not.toHaveBeenCalled();
+    vi.mocked(api.refreshManusAccount).mockResolvedValue({
+      ...manus,
+      credits: { total: 1300, free: 1000, refresh: 300, nextRefreshAt: null },
+    });
+    await act(async () => state.refresh(manus));
+    expect(api.refreshManusAccount).toHaveBeenCalledWith(manus.id);
+    expect(state.accounts[0]).toMatchObject({ credits: { total: 1300 } });
+  });
+  it('opens the official Manus login for another account and cancels after 60 seconds', async () => {
+    const manus = { ...account, credits: null };
+    const waiting = deferred<api.ManusAccount | null>();
+    vi.mocked(api.listManusAccounts).mockResolvedValue([manus]);
+    vi.mocked(api.startManusLogin).mockResolvedValue({
+      loginId: 'manus-login',
+      expiresAt: Date.now() / 1000 + 600,
+      verificationUri: 'https://manus.im/login?from=desktop',
+      account: null,
+    });
+    vi.mocked(api.pollManusLogin).mockReturnValue(waiting.promise);
+    await mount('manus');
+    let operation!: Promise<void>;
+    await act(async () => {
+      operation = state.add();
+    });
+    expect(api.openExternal).toHaveBeenCalledWith('https://manus.im/login?from=desktop');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(api.cancelManusLogin).toHaveBeenCalledWith('manus-login');
+    expect(api.refreshManusAccount).not.toHaveBeenCalled();
+    await act(async () => {
+      waiting.resolve(null);
+      await operation;
+    });
+    expect(state.accounts).toEqual([manus]);
   });
 });

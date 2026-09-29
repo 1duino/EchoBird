@@ -292,6 +292,7 @@ const en: Translations = {
   'toolCat.autoTrading': 'Quant Analysis',
   'toolCat.game': 'Game',
   'toolCat.desktop': 'Desktop',
+  'toolCat.cloudAgent': 'Cloud Agent',
   'toolCat.utility': 'Utilities',
   'toolCat.science': 'Science',
   // Agent Worker tabs
@@ -301,6 +302,7 @@ const en: Translations = {
   'agent.addCurrentAccount': 'Add Account',
   'agent.waitingForBrowser': 'Waiting for browser ({seconds})',
   'agent.refreshAccount': 'Refresh account quota',
+  'agent.manusCredits': 'credits',
   'agent.refreshAccountFailed': 'Failed to refresh quota for {email}: {error}',
   'agent.deleteAccountTitle': 'Delete saved account',
   'agent.deleteAccountConfirm':

@@ -1,6 +1,6 @@
 {
     "name": "Cursor",
-    "category": "IDE",
+    "category": "Desktop",
     "noModelConfig": true,
     "apiProtocol": [
         "openai"

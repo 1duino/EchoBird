@@ -2,6 +2,7 @@ import { CursorAccountSection } from './CursorAccountSection';
 import { AccountSectionButton, AccountSectionRow } from './AccountSectionPrimitives';
 import { DeepSeekAccountSection } from './DeepSeekAccountSection';
 import { GrokAccountSection } from './GrokAccountSection';
+import { ManusAccountSection } from './ManusAccountSection';
 import { ModelSwitchDivider } from './ModelSwitchDivider';
 import { QuotaCountdown } from './QuotaCountdown';
 import { WorkBuddyAccountSection } from './WorkBuddyAccountSection';
@@ -95,7 +96,16 @@ export const AppManagerTitleActions: React.FC = () => {
 // Category order for the "未安装" (not installed) grouping. The installed
 // section renders flat (no category headers per spec); only the uninstalled
 // section groups by category with i18n titles.
-const CATEGORY_ORDER = ['Desktop', 'IDE', 'CLI Code', 'Science', 'AutoTrading', 'Game', 'Utility'];
+const CATEGORY_ORDER = [
+  'Desktop',
+  'Cloud Agent',
+  'IDE',
+  'CLI Code',
+  'Science',
+  'AutoTrading',
+  'Game',
+  'Utility',
+];
 
 // Within Desktop, keep the fixed display order (Coffee CLI last).
 const DESKTOP_ORDER: Record<string, number> = {
@@ -136,6 +146,7 @@ const catLabelKey = (cat: string): TKey => {
     AutoTrading: 'toolCat.autoTrading',
     Game: 'toolCat.game',
     Desktop: 'toolCat.desktop',
+    'Cloud Agent': 'toolCat.cloudAgent',
     Utility: 'toolCat.utility',
     Science: 'toolCat.science',
   };
@@ -173,18 +184,8 @@ interface DesktopIconProps {
 // uniformly — which section an app sits in (已安装 / 未安装) tells the state.
 const DesktopIcon: React.FC<DesktopIconProps> = ({ tool, selected, onClick, dragProps }) => {
   const { locale } = useI18n();
-  const [iconSrc, setIconSrc] = useState<string>(
-    `./icons/tools/${tool.id}.${tool.id === 'dsh' ? 'png' : 'svg'}`
-  );
+  const iconSrc = tool.icon;
   const displayName = toolDisplayName(tool, locale);
-
-  const handleIconError = () => {
-    setIconSrc((prev) => {
-      if (prev.endsWith('.svg')) return `./icons/tools/${tool.id}.png`;
-      if (tool.iconBase64 && prev !== tool.iconBase64) return tool.iconBase64;
-      return '';
-    });
-  };
 
   return (
     <button
@@ -205,7 +206,7 @@ const DesktopIcon: React.FC<DesktopIconProps> = ({ tool, selected, onClick, drag
             src={iconSrc}
             alt=""
             draggable={false}
-            onError={handleIconError}
+            decoding="sync"
             className="w-14 h-14 object-contain"
           />
         ) : (
@@ -937,6 +938,8 @@ export const AppManagerPanel: React.FC = () => {
                 </a>
               </div>
             )
+          ) : selectedTool === 'manus' ? (
+            <ManusAccountSection />
           ) : selectedTool === 'grokbot' || selectedTool === 'cursor' ? (
             <CursorAccountSection tool={selectedTool} />
           ) : selectedToolData.noModelConfig ? (
@@ -1019,6 +1022,7 @@ export const AppManagerBottom: React.FC = () => {
     workBuddyAccounts,
     deepSeekAccounts,
     grokAccounts,
+    manusAccounts,
     grokBotAccounts,
     cursorAccounts,
     launchAfterApply,
@@ -1044,6 +1048,7 @@ export const AppManagerBottom: React.FC = () => {
     (selectedTool === 'claudecode' && !!claudeCodeAccounts.selectedId) ||
     (selectedTool === 'dsh' && !!deepSeekAccounts.selectedId) ||
     (selectedTool === 'grok' && !!grokAccounts.selectedId) ||
+    (selectedTool === 'manus' && !!manusAccounts.selectedId) ||
     (selectedTool === 'grokbot' && !!grokBotAccounts.selectedId) ||
     (selectedTool === 'cursor' && !!cursorAccounts.selectedId) ||
     ((selectedTool === 'workbuddy' || selectedTool === 'workbuddyai') &&
@@ -1060,6 +1065,7 @@ export const AppManagerBottom: React.FC = () => {
     !selectedToolData ||
     isLaunching ||
     (selectedTool === 'grok' && grokAccounts.busy) ||
+    (selectedTool === 'manus' && manusAccounts.busy) ||
     (selectedTool === 'grokbot' && grokBotAccounts.busy) ||
     (selectedTool === 'cursor' && cursorAccounts.busy) ||
     (!isUninstalled && !willApply && !willLaunch);

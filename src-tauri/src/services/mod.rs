@@ -25,6 +25,7 @@ pub mod json_repair;
 pub mod llm_client;
 pub mod local_llm;
 pub(crate) mod local_proxy;
+pub mod manus_accounts;
 pub mod model_directory;
 pub mod model_manager;
 pub mod parasite;

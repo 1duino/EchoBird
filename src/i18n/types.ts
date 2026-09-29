@@ -249,6 +249,7 @@ export type TKey =
   | 'agent.addCurrentAccount'
   | 'agent.waitingForBrowser'
   | 'agent.refreshAccount'
+  | 'agent.manusCredits'
   | 'agent.refreshAccountFailed'
   | 'agent.deleteAccountTitle'
   | 'agent.deleteAccountConfirm'
@@ -265,6 +266,7 @@ export type TKey =
   | 'toolCat.autoTrading'
   | 'toolCat.game'
   | 'toolCat.desktop'
+  | 'toolCat.cloudAgent'
   | 'toolCat.utility'
   | 'toolCat.science'
   // ToolCard labels

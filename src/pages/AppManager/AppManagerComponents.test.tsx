@@ -352,7 +352,7 @@ describe('Claude Desktop 1M control', () => {
   });
 });
 
-describe.each(['grokbot', 'cursor'] as const)('%s account-only panel', (client) => {
+describe.each(['grokbot', 'cursor', 'manus'] as const)('%s account-only panel', (client) => {
   it('shows accounts for a no-model-config tool without rendering API models', async () => {
     const { AppManagerPanel, AppManagerBottom } = await import('./AppManagerComponents');
     const { ModelNexusContext } = await import('../ModelNexus/context');
@@ -362,8 +362,19 @@ describe.each(['grokbot', 'cursor'] as const)('%s account-only panel', (client) 
       selectedToolData: { ...tool, id: client, name: client, noModelConfig: true },
       userModels: models,
       toolModelConfig: { [client]: 'cloud-model' },
-      [client === 'cursor' ? 'cursorAccounts' : 'grokBotAccounts']: {
-        accounts: [{ id: 'one', email: 'bot@example.test', active: true }],
+      [client === 'cursor'
+        ? 'cursorAccounts'
+        : client === 'manus'
+          ? 'manusAccounts'
+          : 'grokBotAccounts']: {
+        accounts: [
+          {
+            id: 'one',
+            email: 'bot@example.test',
+            active: true,
+            credits: client === 'manus' ? { total: 1300 } : undefined,
+          },
+        ],
         selectedId: 'one',
         busy: true,
         remainingSeconds: 60,
@@ -384,6 +395,7 @@ describe.each(['grokbot', 'cursor'] as const)('%s account-only panel', (client) 
       </ConfirmDialogProvider>
     );
     expect(markup).toContain('bot@example.test');
+    if (client === 'manus') expect(markup).toContain('1300 agent.manusCredits');
     expect(markup).not.toContain('Cloud Model');
     expect(markup).not.toContain('Auto Router');
     expect(markup).not.toContain('agent.noModelConfig');

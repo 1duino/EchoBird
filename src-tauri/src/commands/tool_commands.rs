@@ -766,3 +766,39 @@ pub async fn refresh_grok_account(
 ) -> Result<crate::services::grok_accounts::Account, String> {
     crate::services::grok_accounts::refresh(&account_id).await
 }
+
+#[tauri::command]
+pub async fn list_manus_accounts() -> Result<Vec<crate::services::manus_accounts::Account>, String>
+{
+    crate::services::manus_accounts::list().await
+}
+#[tauri::command]
+pub async fn start_manus_login() -> Result<crate::services::manus_accounts::LoginStart, String> {
+    crate::services::manus_accounts::start_login().await
+}
+#[tauri::command]
+pub async fn poll_manus_login(
+    login_id: String,
+) -> Result<Option<crate::services::manus_accounts::Account>, String> {
+    crate::services::manus_accounts::poll_login(&login_id).await
+}
+#[tauri::command]
+pub async fn cancel_manus_login(login_id: String) -> Result<(), String> {
+    crate::services::manus_accounts::cancel_login(&login_id).await
+}
+#[tauri::command]
+pub async fn switch_manus_account(
+    account_id: String,
+) -> Result<crate::services::manus_accounts::Account, String> {
+    crate::services::manus_accounts::switch(&account_id).await
+}
+#[tauri::command]
+pub async fn refresh_manus_account(
+    account_id: String,
+) -> Result<crate::services::manus_accounts::Account, String> {
+    crate::services::manus_accounts::refresh(&account_id).await
+}
+#[tauri::command]
+pub async fn delete_manus_account(account_id: String) -> Result<(), String> {
+    crate::services::manus_accounts::delete(&account_id).await
+}

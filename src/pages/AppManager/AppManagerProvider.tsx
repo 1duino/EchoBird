@@ -481,6 +481,13 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     clearGrokModel,
     setApplyError
   );
+  const manusAccounts = useGrokAccounts(
+    accountsEnabled && selectedTool === 'manus',
+    false,
+    () => {},
+    setApplyError,
+    'manus'
+  );
 
   const clearGrokBotModel = useCallback(
     () => setToolModelConfig((prev) => ({ ...prev, grokbot: null })),
@@ -510,6 +517,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     if (toolId === 'grokbot') grokBotAccounts.select(null);
     if (toolId === 'dsh') deepSeekAccounts.select(null);
     if (toolId === 'grok') grokAccounts.select(null);
+    if (toolId === 'manus') manusAccounts.select(null);
     if (toolId === 'claudecode') claudeCodeAccounts.setSelectedId(null);
     if (toolId === 'workbuddy' || toolId === 'workbuddyai') workBuddyAccounts.select(null);
     if (toolId === 'codex' || toolId === 'chatgptdesktop') {
@@ -747,6 +755,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
       !(workBuddyEdition && workBuddyAccounts.selectedId) &&
       !(selectedTool === 'dsh' && deepSeekAccounts.selectedId) &&
       !(selectedTool === 'grok' && grokAccounts.selectedId) &&
+      !(selectedTool === 'manus' && manusAccounts.selectedId) &&
       !(selectedTool === 'cursor' && cursorAccounts.selectedId) &&
       !(selectedTool === 'grokbot' && grokBotAccounts.selectedId)
     )
@@ -806,6 +815,16 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
         await api.switchCursorAccount(cursorAccounts.selectedId);
         await cursorAccounts.reload();
         await api.startTool('cursor');
+      } catch (error) {
+        setApplyError(accountError(error, t));
+      } finally {
+        setIsLaunching(false);
+      }
+      return;
+    } else if (selectedTool === 'manus' && manusAccounts.selectedId) {
+      try {
+        await manusAccounts.switchAccount();
+        await api.startTool('manus');
       } catch (error) {
         setApplyError(accountError(error, t));
       } finally {
@@ -963,6 +982,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
         workBuddyAccounts,
         deepSeekAccounts,
         grokAccounts,
+        manusAccounts,
         grokBotAccounts,
         cursorAccounts,
         codexAccounts,

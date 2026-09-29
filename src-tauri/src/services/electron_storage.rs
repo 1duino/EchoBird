@@ -173,6 +173,10 @@ pub(super) fn decrypt(cipher: &Cipher, encoded: &str) -> Result<String, String> 
     let bytes = STANDARD
         .decode(encoded)
         .map_err(|_| "accountError.format")?;
+    String::from_utf8(decrypt_bytes(cipher, &bytes)?).map_err(|_| "accountError.format".into())
+}
+
+pub(super) fn decrypt_bytes(cipher: &Cipher, bytes: &[u8]) -> Result<Vec<u8>, String> {
     let plain = match cipher {
         #[cfg(any(windows, test))]
         Cipher::Gcm(key) => {
@@ -201,10 +205,14 @@ pub(super) fn decrypt(cipher: &Cipher, encoded: &str) -> Result<String, String> 
                 .map_err(|_| "accountError.keychain")?
         }
     };
-    String::from_utf8(plain).map_err(|_| "accountError.format".into())
+    Ok(plain)
 }
 
 pub(super) fn encrypt(cipher: &Cipher, plain: &str) -> Result<String, String> {
+    Ok(STANDARD.encode(encrypt_bytes(cipher, plain.as_bytes())?))
+}
+
+pub(super) fn encrypt_bytes(cipher: &Cipher, plain: &[u8]) -> Result<Vec<u8>, String> {
     let bytes = match cipher {
         #[cfg(any(windows, test))]
         Cipher::Gcm(key) => {
@@ -213,7 +221,7 @@ pub(super) fn encrypt(cipher: &Cipher, plain: &str) -> Result<String, String> {
             let mut bytes = b"v10".to_vec();
             bytes.extend_from_slice(&nonce);
             bytes.extend(
-                key.encrypt(Nonce::from_slice(&nonce), plain.as_bytes())
+                key.encrypt(Nonce::from_slice(&nonce), plain)
                     .map_err(|_| "accountError.keychain")?,
             );
             bytes
@@ -223,12 +231,12 @@ pub(super) fn encrypt(cipher: &Cipher, plain: &str) -> Result<String, String> {
             let mut bytes = prefix.to_vec();
             bytes.extend(
                 cbc::Encryptor::<aes::Aes128>::new(key.into(), (&[b' '; 16]).into())
-                    .encrypt_padded_vec_mut::<Pkcs7>(plain.as_bytes()),
+                    .encrypt_padded_vec_mut::<Pkcs7>(plain),
             );
             bytes
         }
     };
-    Ok(STANDARD.encode(bytes))
+    Ok(bytes)
 }
 
 #[cfg(target_os = "linux")]

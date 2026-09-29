@@ -1,6 +1,6 @@
 {
     "name": "Grok Bot",
-    "category": "Desktop",
+    "category": "Cloud Agent",
     "noModelConfig": true,
     "apiProtocol": [],
     "docs": "https://docs.x.ai/grok-bot/get-started",

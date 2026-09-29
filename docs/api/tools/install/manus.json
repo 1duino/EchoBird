@@ -1,0 +1,33 @@
+{
+    "id": "manus",
+    "displayName": "Manus",
+    "homepage": "https://manus.im/desktop",
+    "docs": "https://help.manus.im/en/articles/14089011-how-to-download-the-manus-desktop-app",
+    "kind": "desktop",
+    "platforms": ["windows", "macos"],
+    "install": {
+        "windows_download": "Use EchoBird's bundled tools/manus/install-windows.ps1. It resolves Microsoft Store product 9PHV7M7V4S5L through Microsoft's catalog and update services, downloads the full signed MSIX bundle from Microsoft's delivery CDN to Downloads\\Manus, verifies its Manus identity, and installs it with Add-AppxPackage. It does not use the Microsoft Store UI or winget's region-filtered msstore search.",
+        "macos_download": "For Apple Silicon, use the current official DMG linked from https://manus.im/desktop (currently https://download.manus.im/Manus-Setup-2.0.2.dmg). Open it and install Manus.app in Applications. Intel Macs are not supported.",
+        "note": "Manus is a cloud agent with a desktop client that can also work with authorized local files. EchoBird detects, installs and launches the client; the separate account controls can save a user-authorized Manus login and manually refresh its credits. EchoBird does not manage Manus models or cloud tasks. Linux has no vendor-supported desktop client. Installing the client does not guarantee access to the Manus service from every region."
+    },
+    "install_flow": {
+        "summary": "Detect an existing client, then install the signed Windows package directly from Microsoft's delivery service or the official macOS DMG. Refresh detection and launch.",
+        "agent_steps": [
+            "Detect OS and architecture. Check whether Manus is already installed before downloading. The Windows Store package family is ManusAI.Manus_vajzd2mq3s8wj; a traditional Windows installer may place Manus.exe under %LOCALAPPDATA%\\Programs\\Manus. On macOS check Manus.app in Applications.",
+            "Windows x64: locate EchoBird's bundled tools/manus/install-windows.ps1 from the running echobird.exe directory: check tools/manus and _up_/tools/manus there and in parent directories (the source tree in development). Run it with powershell.exe -NoProfile -ExecutionPolicy Bypass -File <absolute script path>. Do not download this script from a third-party site. It uses Microsoft's catalog and FE3 delivery service and validates the signed Manus MSIX before calling Add-AppxPackage. The package is about 216 MB, so allow time for download.",
+            "If the script fails, report the exact download, signature, identity, or AppX installation error. Do not claim success after merely opening the Microsoft Store page, and do not substitute an unverified mirror. The Store product page is only a fallback if its Get button actually works in the user's region.",
+            "On Apple Silicon macOS, resolve the current DMG from the official Manus desktop page, download it to Downloads, verify the app's code signature, then install Manus.app. Do not attempt installation on Intel macOS or Linux, which the vendor does not support.",
+            "After installation, refresh EchoBird detection. Only report success if Manus is detected. Launch the installed native client and let the user complete Manus sign-in. Do not access Manus account files or change settings."
+        ]
+    },
+    "network_requirements": {
+        "test_urls": [
+            "https://manus.im/desktop",
+            "https://displaycatalog.mp.microsoft.com",
+            "https://fe3.delivery.mp.microsoft.com",
+            "https://apps.microsoft.com/detail/9phv7m7v4s5l",
+            "https://download.manus.im"
+        ],
+        "mirrors": {}
+    }
+}

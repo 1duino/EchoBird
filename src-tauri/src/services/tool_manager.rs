@@ -1173,6 +1173,19 @@ fn match_installed_msix(
     None
 }
 
+#[cfg(windows)]
+fn installed_manus_aumid() -> Option<String> {
+    // Query the registered package so a fresh Store install is visible before
+    // its per-user data directory has been created by the first launch.
+    let script = "$p=Get-AppxPackage -Name 'ManusAI.Manus' | Select-Object -First 1; if ($p) { $id=(Get-AppxPackageManifest $p).Package.Applications.Application | Select-Object -First 1 -ExpandProperty Id; if ($id) { \"$($p.PackageFamilyName)!$id\" } }";
+    let output = std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .output()
+        .ok()?;
+    let aumid = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    (output.status.success() && aumid.starts_with("ManusAI.Manus_vajzd2mq3s8wj!")).then_some(aumid)
+}
+
 // Both MiniMax editions share one entry and the native model config. Respect
 // the existing configured path order when both editions are installed.
 fn find_minimax_desktop(pc: &PathsConfig) -> Option<String> {
@@ -1220,6 +1233,11 @@ async fn detect_tool(pc: &PathsConfig) -> Option<String> {
             let packages = std::path::PathBuf::from(local).join("Packages");
             if let Some(dir) = match_installed_msix(&packages, aumid) {
                 return Some(normalize_for_display(dir.to_string_lossy().to_string()));
+            }
+        }
+        if aumid.starts_with("shell:AppsFolder\\ManusAI.Manus_") {
+            if let Some(aumid) = installed_manus_aumid() {
+                return Some(format!("shell:AppsFolder\\{aumid}"));
             }
         }
     }
@@ -1497,6 +1515,7 @@ fn parse_category(s: &str) -> ToolCategory {
         "AutoTrading" => ToolCategory::AutoTrading,
         "Game" => ToolCategory::Game,
         "Desktop" => ToolCategory::Desktop,
+        "Cloud Agent" => ToolCategory::CloudAgent,
         "Utility" => ToolCategory::Utility,
         "Science" => ToolCategory::Science,
         _ => ToolCategory::Custom,
@@ -2016,11 +2035,21 @@ async fn scan_single_tool(def: ToolDefinition) -> DetectedTool {
 /// Get the launch URI (e.g. "shell:AppsFolder\\<AUMID>") for an MSIX/Store app.
 pub fn get_tool_launch_uri(tool_id: &str) -> Option<String> {
     let defs = get_definitions();
-    defs.iter()
+    let configured = defs
+        .iter()
         .find(|d| d.id == tool_id)?
         .paths_config
         .launch_uri
-        .clone()
+        .clone();
+    #[cfg(windows)]
+    if tool_id == "manus" {
+        // The Store product identifies the package family, but the manifest
+        // controls the app ID after '!'. Resolve it from the installed package.
+        if let Some(aumid) = installed_manus_aumid() {
+            return Some(format!("shell:AppsFolder\\{aumid}"));
+        }
+    }
+    configured
 }
 
 /// Scan all installed tools — runs all detections in parallel for fast completion.
@@ -2061,7 +2090,7 @@ mod tests {
     // though the only test using it is also #[cfg(windows)].
     #[cfg(windows)]
     use super::is_windows_exe;
-    use crate::models::tool::PathsConfig;
+    use crate::models::tool::{PathsConfig, ToolCategory};
 
     #[test]
     fn tool_website_prefers_homepage_over_legacy_repository() {
@@ -2147,6 +2176,35 @@ mod tests {
         assert!(got.is_none());
 
         let _ = std::fs::remove_dir_all(&pkgs);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn manus_store_identity_detects_only_manus_package() {
+        let pkgs =
+            std::env::temp_dir().join(format!("echobird_manus_msix_{}", uuid::Uuid::new_v4()));
+        let manus = pkgs.join("ManusAI.Manus_vajzd2mq3s8wj");
+        std::fs::create_dir_all(&manus).unwrap();
+        std::fs::create_dir_all(pkgs.join("Unrelated.Manus_vajzd2mq3s8wj")).unwrap();
+
+        assert_eq!(
+            super::match_installed_msix(
+                &pkgs,
+                "shell:AppsFolder\\ManusAI.Manus_vajzd2mq3s8wj!ManusApp",
+            )
+            .as_deref(),
+            Some(manus.as_path())
+        );
+
+        let _ = std::fs::remove_dir_all(&pkgs);
+    }
+
+    #[test]
+    fn cloud_agent_category_is_preserved() {
+        assert_eq!(
+            super::parse_category("Cloud Agent"),
+            ToolCategory::CloudAgent
+        );
     }
 
     fn v(items: &[&str]) -> Vec<String> {

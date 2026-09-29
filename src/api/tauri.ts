@@ -393,6 +393,40 @@ export function refreshGrokAccount(accountId: string): Promise<GrokAccount> {
   return invoke('refresh_grok_account', { accountId });
 }
 
+export interface ManusAccount extends GrokAccount {
+  credits: {
+    total: number;
+    free: number | null;
+    refresh: number | null;
+    nextRefreshAt: number | null;
+  } | null;
+}
+export interface ManusLogin extends GrokLogin {
+  verificationUri: string;
+  account: ManusAccount | null;
+}
+export function startManusLogin(): Promise<ManusLogin> {
+  return invoke('start_manus_login');
+}
+export function pollManusLogin(loginId: string): Promise<ManusAccount | null> {
+  return invoke('poll_manus_login', { loginId });
+}
+export function cancelManusLogin(loginId: string): Promise<void> {
+  return invoke('cancel_manus_login', { loginId });
+}
+export function listManusAccounts(): Promise<ManusAccount[]> {
+  return invoke('list_manus_accounts');
+}
+export function switchManusAccount(accountId: string): Promise<ManusAccount> {
+  return invoke('switch_manus_account', { accountId });
+}
+export function deleteManusAccount(accountId: string): Promise<void> {
+  return invoke('delete_manus_account', { accountId });
+}
+export function refreshManusAccount(accountId: string): Promise<ManusAccount> {
+  return invoke('refresh_manus_account', { accountId });
+}
+
 export interface CursorUsage {
   plan: string | null;
   remainingPercent: number | null;

@@ -27,6 +27,7 @@ export interface AppManagerContextType {
   workBuddyAccounts: ReturnType<typeof useWorkBuddyAccounts>;
   deepSeekAccounts: ReturnType<typeof useDeepSeekAccounts>;
   grokAccounts: ReturnType<typeof useGrokAccounts>;
+  manusAccounts: ReturnType<typeof useGrokAccounts>;
   grokBotAccounts: ReturnType<typeof useCursorAccounts>;
   cursorAccounts: ReturnType<typeof useCursorAccounts>;
   codexAccounts: CodexAccount[];

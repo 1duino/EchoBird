@@ -45,15 +45,24 @@ vi.mock('../../api/tauri', () => ({
   deleteGrokAccount: vi.fn(),
   switchGrokAccount: vi.fn(),
   refreshGrokAccount: vi.fn(),
+  listManusAccounts: vi.fn().mockRejectedValue(new Error('accountError.read')),
+  startManusLogin: vi.fn(),
+  pollManusLogin: vi.fn(),
+  cancelManusLogin: vi.fn(),
+  deleteManusAccount: vi.fn(),
+  switchManusAccount: vi.fn(),
+  refreshManusAccount: vi.fn(),
 }));
 
-describe.each(['grokbot', 'cursor', 'grok'] as const)('%s navigation account loading', (tool) => {
+const accountTools = ['grokbot', 'cursor', 'grok', 'manus'] as const;
+describe.each(accountTools)('%s navigation account loading', (tool) => {
   let renderer: ReactTestRenderer;
   let context: ReturnType<typeof useAppManager>;
   const list = {
     grokbot: api.listGrokBotAccounts,
     cursor: api.listCursorAccounts,
     grok: api.listGrokAccounts,
+    manus: api.listManusAccounts,
   }[tool];
   const setInstalled = (installed: boolean) =>
     useToolsStore
@@ -117,5 +126,8 @@ describe.each(['grokbot', 'cursor', 'grok'] as const)('%s navigation account loa
     expect(api.refreshGrokAccount).not.toHaveBeenCalled();
     expect(api.startGrokLogin).not.toHaveBeenCalled();
     expect(api.switchGrokAccount).not.toHaveBeenCalled();
+    expect(api.refreshManusAccount).not.toHaveBeenCalled();
+    expect(api.startManusLogin).not.toHaveBeenCalled();
+    expect(api.switchManusAccount).not.toHaveBeenCalled();
   });
 });
