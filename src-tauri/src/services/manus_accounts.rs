@@ -1,7 +1,7 @@
 //! Manus desktop sessions. Only the session cookie is changed; all other
 //! Chromium storage and Manus settings remain owned by the native client.
 use super::cursor_auth::{read, write};
-use super::electron_storage::{cipher, decrypt, decrypt_bytes, encrypt, encrypt_bytes};
+use super::electron_storage::{cipher, decrypt, decrypt_bytes, encrypt, encrypt_bytes, Cipher};
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -98,7 +98,11 @@ fn cookie_db(dir: &Path, writable: bool) -> Result<Connection, String> {
     Ok(db)
 }
 
-fn cookie_value(db: &Connection, dir: &Path) -> Result<Option<String>, String> {
+fn cookie_value(
+    db: &Connection,
+    dir: &Path,
+    load_cipher: impl FnOnce(&Path) -> Result<Cipher, String>,
+) -> Result<Option<String>, String> {
     let row: Option<(String, Vec<u8>)> = db
         .query_row(
             "SELECT value, encrypted_value FROM cookies WHERE host_key=?1 AND name=?2 AND path='/'",
@@ -116,7 +120,7 @@ fn cookie_value(db: &Connection, dir: &Path) -> Result<Option<String>, String> {
     if encrypted.is_empty() {
         return Ok(None);
     }
-    let bytes = decrypt_bytes(&cipher(dir)?, &encrypted)?;
+    let bytes = decrypt_bytes(&load_cipher(dir)?, &encrypted)?;
     let version: i64 = db
         .query_row("SELECT value FROM meta WHERE key='version'", [], |row| {
             row.get::<_, String>(0)
@@ -140,10 +144,15 @@ fn native_session(dir: &Path) -> Result<Option<String>, String> {
     if !dir.join("Network/Cookies").exists() {
         return Ok(None);
     }
-    cookie_value(&cookie_db(dir, false)?, dir)
+    cookie_value(&cookie_db(dir, false)?, dir, cipher)
 }
 
-fn set_cookie(db: &Connection, dir: &Path, token: Option<&str>) -> Result<(), String> {
+fn set_cookie(
+    db: &Connection,
+    dir: &Path,
+    token: Option<&str>,
+    load_cipher: impl FnOnce(&Path) -> Result<Cipher, String>,
+) -> Result<(), String> {
     let existing: Option<Vec<u8>> = db
         .query_row(
             "SELECT encrypted_value FROM cookies WHERE host_key=?1 AND name=?2 AND path='/'",
@@ -175,7 +184,7 @@ fn set_cookie(db: &Connection, dir: &Path, token: Option<&str>) -> Result<(), St
             bytes.extend_from_slice(&Sha256::digest(HOST.as_bytes()));
         }
         bytes.extend_from_slice(token.as_bytes());
-        (String::new(), encrypt_bytes(&cipher(dir)?, &bytes)?)
+        (String::new(), encrypt_bytes(&load_cipher(dir)?, &bytes)?)
     } else {
         (token.to_string(), Vec::new())
     };
@@ -203,7 +212,7 @@ fn write_native(dir: &Path, token: Option<&str>) -> Result<(), String> {
     }
     let mut db = cookie_db(dir, true)?;
     let tx = db.transaction().map_err(|_| "accountError.write")?;
-    set_cookie(&tx, dir, token)?;
+    set_cookie(&tx, dir, token, cipher)?;
     tx.commit().map_err(|_| "accountError.write".into())
 }
 
@@ -556,11 +565,63 @@ mod tests {
     fn cookie_update_preserves_unrelated_browser_state() {
         let db = Connection::open_in_memory().unwrap();
         db.execute_batch("CREATE TABLE meta (key TEXT PRIMARY KEY,value TEXT); INSERT INTO meta VALUES ('version','24'); CREATE TABLE cookies(creation_utc INTEGER NOT NULL,host_key TEXT NOT NULL,top_frame_site_key TEXT NOT NULL,name TEXT NOT NULL,value TEXT NOT NULL,encrypted_value BLOB NOT NULL,path TEXT NOT NULL,expires_utc INTEGER NOT NULL,is_secure INTEGER NOT NULL,is_httponly INTEGER NOT NULL,last_access_utc INTEGER NOT NULL,has_expires INTEGER NOT NULL,is_persistent INTEGER NOT NULL,priority INTEGER NOT NULL,samesite INTEGER NOT NULL,source_scheme INTEGER NOT NULL,source_port INTEGER NOT NULL,last_update_utc INTEGER NOT NULL,source_type INTEGER NOT NULL,has_cross_site_ancestor INTEGER NOT NULL); INSERT INTO cookies VALUES (1,'api.manus.im','','session_id','old',x'','/',2,1,1,1,1,1,1,1,2,443,1,0,0); INSERT INTO cookies VALUES (1,'other.example','','other','untouched',x'','/',2,1,1,1,1,1,1,1,2,443,1,0,0);").unwrap();
-        set_cookie(&db, Path::new("unused"), Some("new")).unwrap();
+        // A database fixture must not query the runner's real Manus Keychain entry.
+        let fixture_cipher =
+            |_: &Path| Ok(super::super::electron_storage::test_ciphers().remove(1));
+        set_cookie(&db, Path::new("unused"), Some("new"), fixture_cipher).unwrap();
         assert_eq!(
-            cookie_value(&db, Path::new("unused")).unwrap().as_deref(),
+            cookie_value(&db, Path::new("unused"), fixture_cipher)
+                .unwrap()
+                .as_deref(),
             Some("new")
         );
+        // Exercise all native encryption formats and Chromium's v24 host binding.
+        for index in 0..3 {
+            db.execute(
+                "UPDATE cookies SET value='', encrypted_value=x'01' WHERE host_key=?1",
+                [HOST],
+            )
+            .unwrap();
+            let fixture_cipher =
+                |_: &Path| Ok(super::super::electron_storage::test_ciphers().remove(index));
+            set_cookie(
+                &db,
+                Path::new("unused"),
+                Some("encrypted-token"),
+                fixture_cipher,
+            )
+            .unwrap();
+            assert_eq!(
+                cookie_value(&db, Path::new("unused"), fixture_cipher)
+                    .unwrap()
+                    .as_deref(),
+                Some("encrypted-token")
+            );
+            let (plain, encrypted): (String, Vec<u8>) = db
+                .query_row(
+                    "SELECT value,encrypted_value FROM cookies WHERE host_key=?1",
+                    [HOST],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert!(plain.is_empty());
+            let key = fixture_cipher(Path::new("unused")).unwrap();
+            let bytes = decrypt_bytes(&key, &encrypted).unwrap();
+            assert_eq!(&bytes[..32], Sha256::digest(HOST.as_bytes()).as_slice());
+            assert_eq!(&bytes[32..], b"encrypted-token");
+            assert!(
+                set_cookie(&db, Path::new("unused"), Some("replacement"), |_| Err(
+                    "accountError.keychain".into()
+                ))
+                .is_err()
+            );
+            assert_eq!(
+                cookie_value(&db, Path::new("unused"), fixture_cipher)
+                    .unwrap()
+                    .as_deref(),
+                Some("encrypted-token")
+            );
+        }
         let other: String = db
             .query_row(
                 "SELECT value FROM cookies WHERE host_key='other.example'",
