@@ -4,6 +4,7 @@ import App from './App';
 import './index.css';
 import { I18nProvider } from './hooks/useI18n';
 import { useThemeStore } from './stores/themeStore';
+import { initializeUiScale } from './stores/uiScaleStore';
 import { detectLocale, loadLocale, resolveLocale } from './i18n';
 import * as api from './api/tauri';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -31,7 +32,7 @@ if (typeof Obj.hasOwn !== 'function') {
 // ── Boot pipeline ────────────────────────────────────────────────────────────
 // One linear sequence runs before the Tauri window becomes visible:
 //
-//   theme → (i18n ‖ fonts) → <html lang> → React render → 1 paint → appReady()
+//   theme → (i18n ‖ fonts ‖ UI scale) → <html lang> → React render → 1 paint → appReady()
 //
 // Each step exists because skipping it produced a visible artifact in cold
 // start. The window stays hidden (Tauri visible:false) the entire time, so
@@ -159,7 +160,13 @@ function renderBootError(err: unknown): void {
 }
 
 async function bootAndRender(): Promise<void> {
-  const [locale] = await Promise.all([bootI18n(), bootFonts(), bootBrandImage()]);
+  const [locale, , , disposeUiScale] = await Promise.all([
+    bootI18n(),
+    bootFonts(),
+    bootBrandImage(),
+    initializeUiScale(),
+  ]);
+  import.meta.hot?.dispose(disposeUiScale);
 
   // Sync <html lang> before render so :lang(zh) CJK overrides apply on the
   // first paint instead of triggering a reflow when I18nProvider's effect

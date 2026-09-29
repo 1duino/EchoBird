@@ -10,6 +10,7 @@ import {
   Settings2,
   Sparkles,
   Power,
+  Monitor,
 } from 'lucide-react';
 import { getVersion } from '@tauri-apps/api/app';
 import { enable, disable, isEnabled } from '@tauri-apps/plugin-autostart';
@@ -19,6 +20,7 @@ import * as api from '../api/tauri';
 import { isNewerVersion } from '../utils/version';
 import { useThemeStore, type ThemeMode } from '../stores/themeStore';
 import { COLOR_THEMES, type ColorThemeId } from '../data/colorThemes';
+import { useUiScaleStore } from '../stores/uiScaleStore';
 
 // All supported locales
 const LOCALE_OPTIONS = [
@@ -33,6 +35,12 @@ const LOCALE_OPTIONS = [
 // things quiet.
 const EASTER_EGG_KEY = 'echobird_easter_egg';
 type SettingsTab = 'general' | 'appearance';
+
+const UI_SCALE_TICKS = [70, 80, 90, 100, 110, 120, 130, 140, 150];
+function snapUiScale(percent: number, release = false): number {
+  const nearest = Math.round(percent / 10) * 10;
+  return release || Math.abs(percent - nearest) <= 2 ? nearest : percent;
+}
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -78,6 +86,24 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const colorTheme = useThemeStore((s) => s.colorTheme);
   const setColorTheme = useThemeStore((s) => s.setColorTheme);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const uiScale = useUiScaleStore();
+  const scalePreference = uiScale.requestedPreference ?? uiScale.preference;
+  const scalePercent =
+    scalePreference === 'auto' ? Math.round(uiScale.scale * 100) : scalePreference;
+  const scaleDrag = useRef<{
+    screenX: number;
+    percent: number;
+    width: number;
+    value: number;
+  } | null>(null);
+  const changeScale = (percent: number) => {
+    void uiScale.setPreference(Math.max(70, Math.min(150, Math.round(percent))));
+  };
+
+  useEffect(() => {
+    // Removing the slider during a drag can skip its lost-pointer-capture handler.
+    scaleDrag.current = null;
+  }, [isOpen, activeTab]);
 
   // Read the installed binary version from Tauri at runtime — single source of truth (tauri.conf.json).
   useEffect(() => {
@@ -417,6 +443,118 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
               </div>
             ) : (
               <div className="space-y-5">
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-4">
+                    <label
+                      htmlFor="ui-scale"
+                      className="flex items-center gap-2 text-[14px] font-medium text-cyber-text-secondary"
+                    >
+                      <Monitor size={14} />
+                      {t('settings.uiScale')}
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        aria-pressed={scalePreference === 'auto'}
+                        onClick={() => void uiScale.setPreference('auto')}
+                        className={`rounded px-2.5 py-1 text-[13px] transition-colors ${scalePreference === 'auto' ? 'bg-cyber-accent/10 text-cyber-accent' : 'text-cyber-text-secondary hover:bg-cyber-elevated'}`}
+                      >
+                        {t('settings.uiScaleAuto')}
+                      </button>
+                      <span className="w-12 text-right text-[14px] tabular-nums text-cyber-text">
+                        {scalePercent}%
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <input
+                      id="ui-scale"
+                      type="range"
+                      min={70}
+                      max={150}
+                      step={1}
+                      value={scalePercent}
+                      aria-valuetext={`${scalePercent}%`}
+                      className="ui-scale-slider relative block w-full"
+                      style={
+                        {
+                          '--ui-scale-progress': `${((scalePercent - 70) / 80) * 100}%`,
+                        } as React.CSSProperties
+                      }
+                      onChange={(event) => {
+                        if (!scaleDrag.current) changeScale(Number(event.target.value));
+                      }}
+                      onPointerDown={(event) => {
+                        if (event.button !== 0) return;
+                        event.preventDefault();
+                        event.currentTarget.focus();
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        const width = rect.width - 14;
+                        const percent = Math.max(
+                          70,
+                          Math.min(150, 70 + ((event.clientX - rect.left - 7) / width) * 80)
+                        );
+                        // Keep a screen-space baseline while zoom and window bounds move the track.
+                        scaleDrag.current = {
+                          screenX: event.screenX,
+                          percent,
+                          width: width * uiScale.scale,
+                          value: percent,
+                        };
+                        changeScale(snapUiScale(percent));
+                      }}
+                      onPointerMove={(event) => {
+                        const drag = scaleDrag.current;
+                        if (drag) {
+                          drag.value =
+                            drag.percent + ((event.screenX - drag.screenX) / drag.width) * 80;
+                          changeScale(snapUiScale(drag.value));
+                        }
+                      }}
+                      onPointerUp={() => {
+                        if (scaleDrag.current)
+                          changeScale(snapUiScale(scaleDrag.current.value, true));
+                        scaleDrag.current = null;
+                      }}
+                      onPointerCancel={() => {
+                        scaleDrag.current = null;
+                      }}
+                      onLostPointerCapture={() => {
+                        scaleDrag.current = null;
+                      }}
+                    />
+                    <div
+                      aria-hidden={true}
+                      data-scale-ticks={true}
+                      className="pointer-events-none relative mx-[7px] mt-1 h-2"
+                    >
+                      {UI_SCALE_TICKS.map((tick) => (
+                        <span
+                          key={tick}
+                          data-scale-tick={tick}
+                          style={{ left: `${((tick - 70) / 80) * 100}%` }}
+                          className={`absolute top-0 w-0.5 -translate-x-1/2 rounded-full ${tick === 100 ? 'h-1.5 bg-cyber-text-secondary/70' : 'h-1 bg-cyber-text-muted/45'}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="relative mx-[7px] h-4 text-[12px] leading-4 tabular-nums text-cyber-text-muted">
+                      <span className="absolute left-0">70%</span>
+                      <span className="absolute left-[37.5%] -translate-x-1/2 text-cyber-text-secondary">
+                        100%
+                      </span>
+                      <span className="absolute right-0">150%</span>
+                    </div>
+                  </div>
+                  {uiScale.failed && (
+                    <p role="alert" className="text-[13px] text-red-400">
+                      {t('settings.uiScaleError')}
+                    </p>
+                  )}
+                </div>
+
+                <div className="h-px bg-cyber-border/50" />
+
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-[12px] font-semibold text-cyber-text-secondary">
                     {t('settings.colorTheme')}

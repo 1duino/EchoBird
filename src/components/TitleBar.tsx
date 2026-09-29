@@ -1,7 +1,7 @@
 // Custom frameless window title bar
 import React, { useState, useEffect } from 'react';
 import { Settings, Minus, Maximize2, Minimize2, X } from 'lucide-react';
-import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getSettings, saveSettings } from '../api/tauri';
 import { CloseWindowDialog } from './CloseWindowDialog';
 import { useI18n } from '../hooks/useI18n';
@@ -46,10 +46,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
   const handleMaximize = async () => {
     const win = getCurrentWindow();
     if (isMaximized) {
-      // Always restore to default size (1400×900) + center
       await win.unmaximize();
-      await win.setSize(new LogicalSize(1400, 900));
-      await win.center();
     } else {
       await win.maximize();
     }

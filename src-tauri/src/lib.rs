@@ -494,6 +494,31 @@ fn window_state_path() -> Option<std::path::PathBuf> {
     dirs::home_dir().map(|h| h.join(".echobird").join("window-state.json"))
 }
 
+fn initial_window_state(
+    area: &tauri::PhysicalRect<i32, u32>,
+    scale_factor: f64,
+) -> WindowStateRecord {
+    // Leave room around a first-run window, including native macOS decorations.
+    // Sizes in tauri.conf.json are logical; work areas and saved state are physical.
+    let width = (1400.0 * scale_factor)
+        .min(f64::from(area.size.width) * 0.9)
+        .max((960.0 * scale_factor).min(f64::from(area.size.width))) as u32;
+    let height = (900.0 * scale_factor)
+        .min(f64::from(area.size.height) * 0.9)
+        .max((600.0 * scale_factor).min(f64::from(area.size.height))) as u32;
+    fit_window_state_to_work_area(
+        &WindowStateRecord {
+            width,
+            height,
+            x: 0,
+            y: 0,
+            maximized: false,
+        },
+        area,
+        false,
+    )
+}
+
 fn load_window_state() -> Option<WindowStateRecord> {
     let path = window_state_path()?;
     let content = std::fs::read_to_string(&path).ok()?;
@@ -518,18 +543,31 @@ fn apply_window_state(window: &tauri::WebviewWindow, state: &WindowStateRecord) 
     let monitors = window.available_monitors().unwrap_or_default();
     let saved_monitor = monitors
         .iter()
-        .map(|monitor| monitor.work_area())
-        .map(|area| (window_work_area_overlap(state, area), area))
+        .map(|monitor| {
+            (
+                window_work_area_overlap(state, monitor.work_area()),
+                monitor,
+            )
+        })
         .filter(|(overlap, _)| *overlap > 0)
         .max_by_key(|(overlap, _)| *overlap)
-        .map(|(_, area)| area);
+        .map(|(_, monitor)| monitor);
     let fallback_monitor = window
         .current_monitor()
         .ok()
         .flatten()
         .or_else(|| window.primary_monitor().ok().flatten());
+    let monitor = saved_monitor.or(fallback_monitor.as_ref());
+    if let Some(monitor) = monitor {
+        // Even the configured logical minimum can exceed a high-DPI laptop's work area.
+        let area = monitor.work_area();
+        let _ = window.set_min_size(Some(PhysicalSize::new(
+            (960.0 * monitor.scale_factor()).min(f64::from(area.size.width)) as u32,
+            (600.0 * monitor.scale_factor()).min(f64::from(area.size.height)) as u32,
+        )));
+    }
     let restored = saved_monitor
-        .map(|area| fit_window_state_to_work_area(state, area, true))
+        .map(|monitor| fit_window_state_to_work_area(state, monitor.work_area(), true))
         .or_else(|| {
             fallback_monitor
                 .as_ref()
@@ -884,8 +922,8 @@ pub fn run() {
             // Restore previous window size + position (saved at ~/.echobird/window-state.json).
             // Manual because the tauri-plugin-window-state plugin intercepts
             // CloseRequested events, fighting our close-to-tray flow.
-            if let Some(state) = load_window_state() {
-                if let Some(win) = app.get_webview_window("main") {
+            if let Some(win) = app.get_webview_window("main") {
+                if let Some(state) = load_window_state() {
                     apply_window_state(&win, &state);
                     log::info!(
                         "[WindowState] Restored {}x{} at ({},{}) maximized={}",
@@ -895,6 +933,14 @@ pub fn run() {
                         state.y,
                         state.maximized
                     );
+                } else if let Some(monitor) = win
+                    .current_monitor()
+                    .ok()
+                    .flatten()
+                    .or_else(|| win.primary_monitor().ok().flatten())
+                {
+                    let state = initial_window_state(monitor.work_area(), monitor.scale_factor());
+                    apply_window_state(&win, &state);
                 }
             }
 
@@ -1194,6 +1240,30 @@ mod window_state_tests {
         assert_eq!(restored.width, 1366);
         assert_eq!(restored.height, 728);
         assert_eq!((restored.x, restored.y), (0, 0));
+    }
+
+    #[test]
+    fn first_window_keeps_default_size_on_a_large_display() {
+        let initial = initial_window_state(&area(3840, 2080), 2.0);
+        assert_eq!((initial.width, initial.height), (2800, 1800));
+        assert_eq!((initial.x, initial.y), (520, 140));
+        assert!(!initial.maximized);
+    }
+
+    #[test]
+    fn first_window_fits_a_laptop_with_system_scaling() {
+        let initial = initial_window_state(&area(1920, 1032), 1.5);
+        assert_eq!((initial.width, initial.height), (1728, 928));
+        assert_eq!((initial.x, initial.y), (96, 52));
+    }
+
+    #[test]
+    fn first_window_fits_even_when_logical_minimum_exceeds_work_area() {
+        let mut small = area(1280, 720);
+        small.position = (-1280, 40).into();
+        let initial = initial_window_state(&small, 1.5);
+        assert_eq!((initial.width, initial.height), (1280, 720));
+        assert_eq!((initial.x, initial.y), (-1280, 40));
     }
 
     #[test]

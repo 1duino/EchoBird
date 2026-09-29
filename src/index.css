@@ -57,6 +57,42 @@
   white-space: nowrap;
 }
 
+.ui-scale-slider {
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  touch-action: none;
+  cursor: default;
+}
+
+.ui-scale-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    rgb(var(--accent-rgb)) var(--ui-scale-progress),
+    rgb(var(--border-rgb)) var(--ui-scale-progress)
+  );
+}
+
+.ui-scale-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 3px solid rgb(var(--bg-surface-rgb));
+  border-radius: 50%;
+  background: rgb(var(--accent-rgb));
+  box-shadow:
+    0 0 0 1px rgb(var(--border-rgb)),
+    0 1px 3px rgb(0 0 0 / 0.18);
+}
+
+.ui-scale-slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid rgb(var(--accent-rgb));
+  outline-offset: 3px;
+}
+
 .usage-card-action-button:hover {
   color: rgb(var(--text-primary-rgb));
 }
