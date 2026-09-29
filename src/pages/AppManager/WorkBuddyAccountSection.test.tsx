@@ -4,12 +4,15 @@ import { describe, expect, it } from 'vitest';
 import { WorkBuddyAccountSection } from './WorkBuddyAccountSection';
 import { AppManagerContext, type AppManagerContextType } from './context';
 import type { WorkBuddyEdition } from '../../api/tauri';
+import { I18nContext } from '../../hooks/i18nContext';
+import { loadLocale, translate } from '../../i18n';
 
 function renderAccount(
   remaining: number | null,
   edition: WorkBuddyEdition = 'workbuddy',
   busy = false,
-  plan: string | null = 'Free'
+  plan: string | null = 'Free',
+  locale?: string
 ) {
   const context = {
     selectedTool: edition,
@@ -36,9 +39,17 @@ function renderAccount(
     },
   } as unknown as AppManagerContextType;
   return renderToStaticMarkup(
-    <AppManagerContext.Provider value={context}>
-      <WorkBuddyAccountSection showDivider={false} />
-    </AppManagerContext.Provider>
+    <I18nContext.Provider
+      value={{
+        locale: locale || 'en',
+        setLocale: () => {},
+        t: (key) => (locale ? translate(key, locale) : key),
+      }}
+    >
+      <AppManagerContext.Provider value={context}>
+        <WorkBuddyAccountSection showDivider={false} />
+      </AppManagerContext.Provider>
+    </I18nContext.Provider>
   );
 }
 
@@ -68,6 +79,16 @@ describe('WorkBuddy account card', () => {
     expect(renderAccount(0)).not.toContain('—');
     expect(renderAccount(120)).toContain('width:100%');
     expect(renderAccount(120)).toContain('120');
+  });
+  it.each([
+    ['zh-Hans', '积分'],
+    ['zh-Hant', '積分'],
+    ['en', 'credits'],
+    ['ja', 'クレジット'],
+  ])('labels remaining credit in %s', async (locale, unit) => {
+    await loadLocale(locale);
+    expect(renderAccount(75.25, 'workbuddy', false, 'Free', locale)).toContain(`75.25 ${unit}`);
+    expect(renderAccount(null, 'workbuddy', false, 'Free', locale)).not.toContain(unit);
   });
   it('uses the existing authorization waiting state', () => {
     const markup = renderAccount(10, 'workbuddyai', true);

@@ -3,10 +3,12 @@ import { useAppManager } from './context';
 import { ModelSwitchDivider } from './ModelSwitchDivider';
 import { AccountSectionButton, AccountSectionRow } from './AccountSectionPrimitives';
 import { QuotaCountdown } from './QuotaCountdown';
+import { useI18n } from '../../hooks/useI18n';
 export const WorkBuddyAccountSection: React.FC<{ showDivider?: boolean }> = ({
   showDivider = true,
 }) => {
   const { workBuddyAccounts, selectedTool } = useAppManager();
+  const { t } = useI18n();
   const { accounts, selectedId, select, busy, remainingSeconds, refreshing, add, refresh, remove } =
     workBuddyAccounts;
   return (
@@ -44,7 +46,7 @@ export const WorkBuddyAccountSection: React.FC<{ showDivider?: boolean }> = ({
                   <span className="min-w-[30px] flex-shrink-0 text-right text-[12px] font-semibold leading-[16px] text-cyber-text">
                     {account.remaining == null
                       ? '—'
-                      : account.remaining.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      : `${account.remaining.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${t('agent.credits')}`}
                   </span>
                   <QuotaCountdown resetAt={account.expiresAt} />
                 </span>

@@ -267,7 +267,7 @@ const zhHans: Partial<Translations> = {
   'agent.addCurrentAccount': '添加账号',
   'agent.waitingForBrowser': '等待浏览器操作({seconds})',
   'agent.refreshAccount': '刷新账号额度',
-  'agent.manusCredits': '积分',
+  'agent.credits': '积分',
   'agent.refreshAccountFailed': '刷新 {email} 的额度失败：{error}',
   'agent.deleteAccountTitle': '删除已保存账号',
   'agent.deleteAccountConfirm': '删除 {email} 的本地快照？当前应用不会因此退出登录。',

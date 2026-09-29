@@ -395,7 +395,7 @@ describe.each(['grokbot', 'cursor', 'manus'] as const)('%s account-only panel', 
       </ConfirmDialogProvider>
     );
     expect(markup).toContain('bot@example.test');
-    if (client === 'manus') expect(markup).toContain('1300 agent.manusCredits');
+    if (client === 'manus') expect(markup).toContain('1300 agent.credits');
     expect(markup).not.toContain('Cloud Model');
     expect(markup).not.toContain('Auto Router');
     expect(markup).not.toContain('agent.noModelConfig');

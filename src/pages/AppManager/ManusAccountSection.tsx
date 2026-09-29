@@ -25,7 +25,7 @@ export const ManusAccountSection: React.FC = () => {
                 selected={manusAccounts.selectedId === account.id}
                 email={account.email}
                 plan={account.plan}
-                secondary={credits ? `${credits.total} ${t('agent.manusCredits')}` : undefined}
+                secondary={credits ? `${credits.total} ${t('agent.credits')}` : undefined}
                 refreshing={manusAccounts.refreshing.has(account.id)}
                 onSelect={() => manusAccounts.select(account.id)}
                 onRefresh={() => void manusAccounts.refresh(account)}
