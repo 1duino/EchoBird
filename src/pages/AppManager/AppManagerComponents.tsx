@@ -214,8 +214,8 @@ const DesktopIcon: React.FC<DesktopIconProps> = ({ tool, selected, onClick, drag
       </span>
       {/* Reserve exactly two lines for every name. Single-line labels center
           vertically in the same area occupied by wrapped two-line labels. */}
-      <span className="flex h-8 w-full items-center justify-center text-center text-xs leading-snug text-cyber-text">
-        <span className="line-clamp-2 break-words">{displayName}</span>
+      <span className="flex h-8 w-full items-center justify-center text-center text-xs !leading-tight text-cyber-text">
+        <span className="line-clamp-2 break-words break-keep">{displayName}</span>
       </span>
     </button>
   );
