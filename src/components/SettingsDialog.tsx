@@ -338,7 +338,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
                       {t('settings.closeWindowBehavior')}
                     </span>
                   </div>
-                  <div className="flex gap-1 p-1 bg-cyber-input border border-cyber-border rounded-button">
+                  <div className="view-mode-tabs flex border border-cyber-border rounded-button overflow-hidden">
                     {(
                       [
                         [false, t('settings.closeDirectly')],
@@ -349,10 +349,11 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
                       <button
                         key={String(value)}
                         onClick={() => handleCloseToTrayChange(value)}
-                        className={`flex-1 h-9 flex items-center justify-center text-[13px] transition-colors rounded ${
+                        aria-pressed={closeToTray === value}
+                        className={`view-mode-tab flex-1 h-11 flex items-center justify-center text-[13px] transition-[color] ${
                           closeToTray === value
                             ? 'bg-cyber-elevated text-cyber-text font-semibold'
-                            : 'text-cyber-text-secondary hover:text-cyber-text hover:bg-cyber-elevated'
+                            : 'text-cyber-text-secondary hover:text-cyber-text'
                         }`}
                       >
                         {label}
@@ -645,7 +646,7 @@ const ToggleSwitch: React.FC<{ checked: boolean; onChange: (v: boolean) => void 
   </button>
 );
 
-// Compact text tabs for the theme mode: Light / Dark / System.
+// Compact segmented tabs for the theme mode: Light / Dark / System.
 const ThemeSegmented: React.FC<{
   value: ThemeMode;
   onChange: (mode: ThemeMode) => void;
@@ -657,15 +658,19 @@ const ThemeSegmented: React.FC<{
     { id: 'system', label: labels.system },
   ];
   return (
-    <div className="flex items-center">
+    <div className="view-mode-tabs flex flex-shrink-0 border border-cyber-border rounded-button overflow-hidden">
       {opts.map((o) => {
         const active = value === o.id;
         return (
           <button
             key={o.id}
+            type="button"
             onClick={() => onChange(o.id)}
-            className={`px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-              active ? 'text-cyber-text' : 'text-cyber-text-muted hover:text-cyber-text-secondary'
+            aria-pressed={active}
+            className={`view-mode-tab whitespace-nowrap px-3 py-1.5 text-[12px] font-semibold transition-[color] ${
+              active
+                ? 'bg-cyber-elevated text-cyber-text'
+                : 'text-cyber-text-muted hover:text-cyber-text-secondary'
             }`}
           >
             {o.label}
