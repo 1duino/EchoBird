@@ -37,10 +37,6 @@ const EASTER_EGG_KEY = 'echobird_easter_egg';
 type SettingsTab = 'general' | 'appearance';
 
 const UI_SCALE_TICKS = [70, 80, 90, 100, 110, 120, 130, 140, 150];
-function snapUiScale(percent: number, release = false): number {
-  const nearest = Math.round(percent / 10) * 10;
-  return release || Math.abs(percent - nearest) <= 2 ? nearest : percent;
-}
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -90,15 +86,24 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
   const scalePreference = uiScale.requestedPreference ?? uiScale.preference;
   const scalePercent =
     scalePreference === 'auto' ? Math.round(uiScale.scale * 100) : scalePreference;
+  const [dragPercent, setDragPercent] = useState<number | null>(null);
+  const sliderPercent = dragPercent ?? scalePercent;
   const scaleDrag = useRef<{
     screenX: number;
     percent: number;
     width: number;
-    value: number;
+    tick: number;
   } | null>(null);
   const changeScale = (percent: number) => {
-    void uiScale.setPreference(Math.max(70, Math.min(150, Math.round(percent))));
+    void uiScale.setPreference(percent);
   };
+  const finishScaleDrag = () => {
+    scaleDrag.current = null;
+    setDragPercent(null);
+  };
+  if (dragPercent !== null && (!isOpen || activeTab !== 'appearance')) {
+    setDragPercent(null);
+  }
 
   useEffect(() => {
     // Removing the slider during a drag can skip its lost-pointer-capture handler.
@@ -472,17 +477,42 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
                       type="range"
                       min={70}
                       max={150}
-                      step={1}
-                      value={scalePercent}
+                      step="any"
+                      value={sliderPercent}
                       aria-valuetext={`${scalePercent}%`}
                       className="ui-scale-slider relative block w-full"
                       style={
                         {
-                          '--ui-scale-progress': `${((scalePercent - 70) / 80) * 100}%`,
+                          '--ui-scale-progress': `${((sliderPercent - 70) / 80) * 100}%`,
                         } as React.CSSProperties
                       }
                       onChange={(event) => {
                         if (!scaleDrag.current) changeScale(Number(event.target.value));
+                      }}
+                      onKeyDown={(event) => {
+                        let percent: number;
+                        switch (event.key) {
+                          case 'ArrowRight':
+                          case 'ArrowUp':
+                          case 'PageUp':
+                            percent = scalePercent + 10;
+                            break;
+                          case 'ArrowLeft':
+                          case 'ArrowDown':
+                          case 'PageDown':
+                            percent = scalePercent - 10;
+                            break;
+                          case 'Home':
+                            percent = 70;
+                            break;
+                          case 'End':
+                            percent = 150;
+                            break;
+                          default:
+                            return;
+                        }
+                        event.preventDefault();
+                        if (!scaleDrag.current) changeScale(percent);
                       }}
                       onPointerDown={(event) => {
                         if (event.button !== 0) return;
@@ -495,34 +525,42 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
                           70,
                           Math.min(150, 70 + ((event.clientX - rect.left - 7) / width) * 80)
                         );
+                        const tick = Math.round(percent / 10) * 10;
                         // Keep a screen-space baseline while zoom and window bounds move the track.
                         scaleDrag.current = {
                           screenX: event.screenX,
                           percent,
                           width: width * uiScale.scale,
-                          value: percent,
+                          tick,
                         };
-                        changeScale(snapUiScale(percent));
+                        setDragPercent(percent);
+                        changeScale(tick);
                       }}
                       onPointerMove={(event) => {
                         const drag = scaleDrag.current;
                         if (drag) {
-                          drag.value =
-                            drag.percent + ((event.screenX - drag.screenX) / drag.width) * 80;
-                          changeScale(snapUiScale(drag.value));
+                          const percent = Math.max(
+                            70,
+                            Math.min(
+                              150,
+                              drag.percent + ((event.screenX - drag.screenX) / drag.width) * 80
+                            )
+                          );
+                          setDragPercent(percent);
+                          // The thumb moves freely; only crossing a tick changes the UI/window.
+                          const tick =
+                            percent >= drag.tick
+                              ? Math.floor(percent / 10) * 10
+                              : Math.ceil(percent / 10) * 10;
+                          if (tick !== drag.tick) {
+                            drag.tick = tick;
+                            changeScale(tick);
+                          }
                         }
                       }}
-                      onPointerUp={() => {
-                        if (scaleDrag.current)
-                          changeScale(snapUiScale(scaleDrag.current.value, true));
-                        scaleDrag.current = null;
-                      }}
-                      onPointerCancel={() => {
-                        scaleDrag.current = null;
-                      }}
-                      onLostPointerCapture={() => {
-                        scaleDrag.current = null;
-                      }}
+                      onPointerUp={finishScaleDrag}
+                      onPointerCancel={finishScaleDrag}
+                      onLostPointerCapture={finishScaleDrag}
                     />
                     <div
                       aria-hidden={true}

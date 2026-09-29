@@ -82,6 +82,19 @@ export const useUiScaleStore = create<UiScaleStore>((set, get) => ({
   pending: false,
   failed: false,
   setPreference: (preference, persist = true) => {
+    if (preference !== 'auto') {
+      preference = Math.max(70, Math.min(150, Math.round(preference / 10) * 10));
+      const state = get();
+      // Pointer movement within one step must not resize/recenter the window again.
+      if (
+        persist &&
+        applied &&
+        !state.failed &&
+        (state.requestedPreference ?? state.preference) === preference
+      ) {
+        return applying ?? Promise.resolve();
+      }
+    }
     queued = { preference, persist };
     set({ requestedPreference: preference, pending: true, failed: false });
     // Coalesce drag events while native calls are in flight; always apply the last value.

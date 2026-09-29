@@ -78,12 +78,12 @@ describe('UI scale', () => {
   });
 
   it('restores a manual preference without consulting or overriding it for the display', async () => {
-    storage.getItem.mockReturnValue('125');
+    storage.getItem.mockReturnValue('130');
     await module.initializeUiScale();
     native.moved.mock.calls[0][0]();
     native.dpi.mock.calls[0][0]();
     await vi.runAllTimersAsync();
-    expect(native.zoom).toHaveBeenCalledExactlyOnceWith(1.25);
+    expect(native.zoom).toHaveBeenCalledExactlyOnceWith(1.3);
     expect(native.monitor).not.toHaveBeenCalled();
     expect(storage.setItem).not.toHaveBeenCalled();
   });
@@ -187,16 +187,37 @@ describe('UI scale', () => {
     });
   });
 
-  it.each([70, 103, 125, 150])(
-    'restores %s percent without resizing the saved window again',
-    async (percent) => {
+  it.each([
+    [70, 70],
+    [77, 80],
+    [103, 100],
+    [125, 130],
+    [150, 150],
+  ])(
+    'restores legacy %s percent as the fixed %s percent step without resizing again',
+    async (percent, expected) => {
       storage.getItem.mockReturnValue(String(percent));
       await module.initializeUiScale();
-      expect(native.zoom).toHaveBeenCalledExactlyOnceWith(percent / 100);
-      expect(module.useUiScaleStore.getState().preference).toBe(percent);
+      expect(native.zoom).toHaveBeenCalledExactlyOnceWith(expected / 100);
+      expect(module.useUiScaleStore.getState().preference).toBe(expected);
       expect(native.setSize).not.toHaveBeenCalled();
+      expect(storage.setItem).not.toHaveBeenCalled();
     }
   );
+
+  it('does not repeatedly resize or save while moving within the same fixed step', async () => {
+    await module.initializeUiScale();
+    native.zoom.mockClear();
+    for (const percent of [77, 78, 80, 81, 84]) {
+      await module.useUiScaleStore.getState().setPreference(percent);
+    }
+    expect(native.zoom).toHaveBeenCalledExactlyOnceWith(0.8);
+    expect(native.setSize).toHaveBeenCalledExactlyOnceWith(new PhysicalSize(1120, 720));
+    expect(storage.setItem).toHaveBeenCalledExactlyOnceWith('echobird-ui-scale', '80');
+    await module.useUiScaleStore.getState().setPreference(85);
+    expect(native.zoom).toHaveBeenLastCalledWith(0.9);
+    expect(native.setSize).toHaveBeenCalledTimes(2);
+  });
 
   it.each(['69', '151', 'NaN', 'Infinity', '88.5'])(
     'rejects an invalid stored percentage %s',

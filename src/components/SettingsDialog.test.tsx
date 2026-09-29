@@ -68,12 +68,12 @@ it('only changes scale on explicit selection, not settings entry, tab changes or
   expect(localStorage.setItem).not.toHaveBeenCalled();
 
   const slider = view.root.findByProps({ id: 'ui-scale' });
-  expect(slider.props).toMatchObject({ type: 'range', min: 70, max: 150, step: 1, value: 100 });
+  expect(slider.props).toMatchObject({ type: 'range', min: 70, max: 150, step: 'any', value: 100 });
   await act(async () => {
-    slider.props.onChange({ target: { value: '103' } });
+    slider.props.onChange({ target: { value: '110' } });
   });
-  expect(mocks.zoom).toHaveBeenCalledExactlyOnceWith(1.03);
-  expect(localStorage.setItem).toHaveBeenCalledExactlyOnceWith('echobird-ui-scale', '103');
+  expect(mocks.zoom).toHaveBeenCalledExactlyOnceWith(1.1);
+  expect(localStorage.setItem).toHaveBeenCalledExactlyOnceWith('echobird-ui-scale', '110');
 });
 
 it('keeps the slider responsive while applying and shows failure without a blocking dialog', async () => {
@@ -158,6 +158,10 @@ it.each(['close', 'tab'])(
   'clears an interrupted scale drag on %s before keyboard input',
   async (exit) => {
     await startScaleDrag();
+    await act(async () => {
+      view.root.findByProps({ id: 'ui-scale' }).props.onPointerMove({ screenX: 1035 });
+    });
+    vi.mocked(localStorage.setItem).mockClear();
     if (exit === 'close') {
       await act(async () => {
         view.update(<SettingsDialog {...props} isOpen={false} />);
@@ -169,11 +173,13 @@ it.each(['close', 'tab'])(
       await tab('settings.general');
       await tab('settings.appearance');
     }
+    expect(view.root.findByProps({ id: 'ui-scale' }).props.value).toBe(100);
+    expect(localStorage.setItem).not.toHaveBeenCalled();
     await act(async () => {
-      view.root.findByProps({ id: 'ui-scale' }).props.onChange({ target: { value: '101' } });
+      view.root.findByProps({ id: 'ui-scale' }).props.onChange({ target: { value: '110' } });
     });
-    expect(useUiScaleStore.getState().preference).toBe(101);
-    expect(localStorage.setItem).toHaveBeenLastCalledWith('echobird-ui-scale', '101');
+    expect(useUiScaleStore.getState().preference).toBe(110);
+    expect(localStorage.setItem).toHaveBeenLastCalledWith('echobird-ui-scale', '110');
   }
 );
 
@@ -193,6 +199,10 @@ it.each([
   [102, 100],
   [108, 110],
   [148, 150],
+  [74, 70],
+  [75, 80],
+  [77, 80],
+  [125, 130],
 ])(
   'attracts a pointer press at %s percent to the nearby %s percent tick',
   async (pointer, expected) => {
@@ -204,10 +214,13 @@ it.each([
 it.each([
   [97, 100],
   [103, 100],
-  [106, 110],
+  [106, 100],
   [114, 110],
+  [86, 90],
+  [160, 150],
+  [60, 70],
 ])(
-  'moves freely to %s outside the attraction zone, then settles at %s on release',
+  'moves the thumb to %s but applies only the last crossed %s percent tick',
   async (pointer, expected) => {
     await startScaleDrag();
     await act(async () => {
@@ -215,29 +228,97 @@ it.each([
         .findByProps({ id: 'ui-scale' })
         .props.onPointerMove({ screenX: 1000 + (pointer - 100) * 5 });
     });
-    expect(useUiScaleStore.getState().preference).toBe(pointer);
+    expect(useUiScaleStore.getState().preference).toBe(expected);
+    expect(view.root.findByProps({ id: 'ui-scale' }).props.value).toBe(
+      Math.max(70, Math.min(150, pointer))
+    );
+    expect(view.root.findByProps({ id: 'ui-scale' }).props['aria-valuetext']).toBe(`${expected}%`);
     await act(async () => {
       view.root.findByProps({ id: 'ui-scale' }).props.onPointerUp();
     });
     expect(useUiScaleStore.getState().preference).toBe(expected);
+    expect(view.root.findByProps({ id: 'ui-scale' }).props.value).toBe(expected);
     expect(localStorage.setItem).toHaveBeenLastCalledWith('echobird-ui-scale', String(expected));
   }
 );
 
-it('releases the attraction when pulled beyond the zone and snaps from either side', async () => {
+it('waits for the next tick in either direction while the thumb moves freely', async () => {
   await startScaleDrag();
   for (const [pointer, expected] of [
     [101, 100],
-    [103, 103],
-    [109, 110],
-    [107, 107],
-    [102, 100],
+    [109.9, 100],
+    [110, 110],
+    [107, 110],
+    [100.1, 110],
+    [100, 100],
+    [99, 100],
+    [90, 90],
   ]) {
+    mocks.zoom.mockClear();
+    vi.mocked(localStorage.setItem).mockClear();
+    const previous = useUiScaleStore.getState().preference;
     await act(async () => {
       view.root
         .findByProps({ id: 'ui-scale' })
         .props.onPointerMove({ screenX: 1000 + (pointer - 100) * 5 });
     });
     expect(useUiScaleStore.getState().preference).toBe(expected);
+    expect(view.root.findByProps({ id: 'ui-scale' }).props.value).toBeCloseTo(pointer);
+    if (expected === previous) {
+      expect(mocks.zoom).not.toHaveBeenCalled();
+      expect(localStorage.setItem).not.toHaveBeenCalled();
+    } else {
+      expect(mocks.zoom).toHaveBeenCalledExactlyOnceWith(expected / 100);
+      expect(localStorage.setItem).toHaveBeenCalledExactlyOnceWith(
+        'echobird-ui-scale',
+        String(expected)
+      );
+    }
+  }
+});
+
+it.each(['onPointerUp', 'onPointerCancel', 'onLostPointerCapture'])(
+  'returns the thumb to the reached tick on %s without another scale change',
+  async (finish) => {
+    await startScaleDrag();
+    await act(async () => {
+      view.root.findByProps({ id: 'ui-scale' }).props.onPointerMove({ screenX: 1085 });
+    });
+    expect(view.root.findByProps({ id: 'ui-scale' }).props.value).toBe(117);
+    expect(useUiScaleStore.getState().preference).toBe(110);
+    mocks.zoom.mockClear();
+    vi.mocked(localStorage.setItem).mockClear();
+    await act(async () => {
+      view.root.findByProps({ id: 'ui-scale' }).props[finish]();
+      view.root.findByProps({ id: 'ui-scale' }).props.onPointerMove({ screenX: 1250 });
+    });
+    expect(view.root.findByProps({ id: 'ui-scale' }).props.value).toBe(110);
+    expect(mocks.zoom).not.toHaveBeenCalled();
+    expect(localStorage.setItem).not.toHaveBeenCalled();
+  }
+);
+
+it('keeps keyboard changes at ten percent with a continuous pointer range', async () => {
+  await startScaleDrag();
+  await act(async () => {
+    view.root.findByProps({ id: 'ui-scale' }).props.onPointerUp();
+  });
+  for (const [key, expected] of [
+    ['ArrowRight', 110],
+    ['ArrowUp', 120],
+    ['ArrowLeft', 110],
+    ['ArrowDown', 100],
+    ['End', 150],
+    ['ArrowRight', 150],
+    ['Home', 70],
+    ['ArrowLeft', 70],
+  ] as const) {
+    const preventDefault = vi.fn();
+    await act(async () => {
+      view.root.findByProps({ id: 'ui-scale' }).props.onKeyDown({ key, preventDefault });
+    });
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(useUiScaleStore.getState().preference).toBe(expected);
+    expect(view.root.findByProps({ id: 'ui-scale' }).props.value).toBe(expected);
   }
 });
