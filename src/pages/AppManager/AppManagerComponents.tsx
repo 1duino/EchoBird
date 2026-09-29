@@ -720,15 +720,13 @@ export const ModelListSection: React.FC<ModelListSectionProps> = ({
     localModels.length === 0 &&
     smartRouterModels.length === 0;
   if (isEmpty) {
+    const [before, after] = t('agent.noModelsHint').split('{modelNexus}');
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
-        <BoxIcon size={28} className="text-cyber-text opacity-25" />
+      <div className="flex h-full items-center justify-center text-center">
         <p className="text-base text-cyber-text-secondary font-mono leading-relaxed">
-          {t('agent.noModelsTitle')}
-          <br />
-          {t('agent.noModelsHintPre')}{' '}
-          <span className="text-cyber-text font-bold">{t('nav.modelNexus')}</span>{' '}
-          {t('agent.noModelsHintPost')}
+          {before}
+          <span className="text-cyber-text font-bold">{t('nav.modelNexus')}</span>
+          {after}
         </p>
       </div>
     );
@@ -950,7 +948,7 @@ export const AppManagerPanel: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-2 h-full">
+            <div className="flex h-full flex-col gap-2">
               {showCodexAccounts && <CodexAccountSection showDivider={hasVisibleModels} />}
               {selectedTool === 'dsh' && <DeepSeekAccountSection showDivider={hasVisibleModels} />}
               {selectedTool === 'grok' && <GrokAccountSection showDivider={hasVisibleModels} />}
@@ -965,35 +963,37 @@ export const AppManagerPanel: React.FC = () => {
                   {routingControls}
                 </>
               )}
-              <ModelListSection
-                smartRouterEnabled={smartRouterEnabled}
-                selectedToolData={selectedToolData}
-                userModels={userModels}
-                toolModelConfig={toolModelConfig}
-                selectedTool={selectedTool}
-                handleSelectModel={handleSelectModel}
-                appliedPulse={appliedPulse}
-                modelUsageData={modelUsageData}
-                refreshingUsageIds={refreshingUsageIds}
-                isRefreshingUsage={isRefreshingUsage}
-                onRefreshUsage={(modelId) =>
-                  volcAkSkMissingIds.has(modelId)
-                    ? openAkskModal(modelId)
-                    : refreshSingleUsage(modelId)
-                }
-                onEditModel={handleCardEdit}
-                onDeleteModel={async (modelId) => {
-                  const ok = await confirm({
-                    title: t('model.deleteTitle'),
-                    message: t('model.deleteConfirm'),
-                    confirmText: t('btn.delete'),
-                    cancelText: t('btn.cancel'),
-                    type: 'danger',
-                  });
-                  if (ok) await handleCardDelete(modelId);
-                }}
-                t={t}
-              />
+              <div className="flex-1">
+                <ModelListSection
+                  smartRouterEnabled={smartRouterEnabled}
+                  selectedToolData={selectedToolData}
+                  userModels={userModels}
+                  toolModelConfig={toolModelConfig}
+                  selectedTool={selectedTool}
+                  handleSelectModel={handleSelectModel}
+                  appliedPulse={appliedPulse}
+                  modelUsageData={modelUsageData}
+                  refreshingUsageIds={refreshingUsageIds}
+                  isRefreshingUsage={isRefreshingUsage}
+                  onRefreshUsage={(modelId) =>
+                    volcAkSkMissingIds.has(modelId)
+                      ? openAkskModal(modelId)
+                      : refreshSingleUsage(modelId)
+                  }
+                  onEditModel={handleCardEdit}
+                  onDeleteModel={async (modelId) => {
+                    const ok = await confirm({
+                      title: t('model.deleteTitle'),
+                      message: t('model.deleteConfirm'),
+                      confirmText: t('btn.delete'),
+                      cancelText: t('btn.cancel'),
+                      type: 'danger',
+                    });
+                    if (ok) await handleCardDelete(modelId);
+                  }}
+                  t={t}
+                />
+              </div>
             </div>
           )
         ) : (
