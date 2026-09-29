@@ -75,8 +75,13 @@ describe('DeepSeek account lifecycle', () => {
     });
     expect(api.openExternal).toHaveBeenCalledWith('https://platform.deepseek.com/dsh/authorize');
     expect(clearModel).toHaveBeenCalled();
-    expect(state.accounts[0].balances?.[0].amount).toBe(10);
+    expect(state.accounts[0].balances).toBeNull();
+    expect(api.refreshDeepSeekAccountQuota).not.toHaveBeenCalled();
     expect(state.busy).toBe(false);
+    await act(async () => {
+      await state.refresh(state.accounts[0]);
+    });
+    expect(state.accounts[0].balances?.[0].amount).toBe(10);
   });
   it('cancels a late login initialization after leaving the tool', async () => {
     await mount();

@@ -21,6 +21,7 @@
             "Detect OS and architecture. Check for an existing Grok Bot installation before downloading; do not reinstall a working client.",
             "Use https://x.ai/bot to resolve the current official download for the detected OS and architecture. Do not install the grok CLI or third-party npm packages.",
             "Save the installer to Downloads, report its exact path, and open it. Let the user complete any installer wizard.",
+            "Linux AppImage: save it under ~/Applications and make it executable. Register a per-user ~/.local/share/applications/grok-bot.desktop entry with Type=Application, Name=Grok Bot and Exec pointing to the absolute AppImage path (quote and escape paths containing spaces). Preserve an existing valid entry. EchoBird detects this desktop entry; downloading the AppImage alone is not a complete installation.",
             "Refresh EchoBird tool detection and launch Grok Bot. On Windows the default executable is %LOCALAPPDATA%\\Programs\\Grok Bot\\Grok Bot.exe.",
             "Sign in with the user's Cursor account. EchoBird imports existing native accounts on first use; adding an account saves it in EchoBird, and applying a selection restarts Grok Bot with that account.",
             "Do not link SuperGrok subscriptions, change plans, change privacy settings, or modify cloud Bots as part of installation."

@@ -23,6 +23,7 @@ export function useDeepSeekAccounts(
   const adding = useRef(false);
   const selectionRevision = useRef(0);
   const pending = useRef<api.DeepSeekLogin | null>(null);
+  const clearLoginTimers = useRef<(() => void) | null>(null);
   const refreshIds = useRef(new Set<string>());
   const hasModelRef = useRef(hasModel);
   useEffect(() => {
@@ -37,6 +38,7 @@ export function useDeepSeekAccounts(
 
   useEffect(() => {
     const current = ++generation.current;
+    const revision = selectionRevision.current;
     const timer = setTimeout(() => {
       setBusy(false);
       setRefreshing(new Set());
@@ -46,25 +48,25 @@ export function useDeepSeekAccounts(
         .then((result) => {
           if (current !== generation.current) return;
           setAccounts(result);
-          if (!hasModelRef.current)
+          if (!hasModelRef.current && revision === selectionRevision.current)
             setSelected((prev) =>
               result.some((a) => a.id === prev) ? prev : (result.find((a) => a.active)?.id ?? null)
             );
         })
-        .catch((error) => {
-          if (current === generation.current) showError(accountError(error, t));
-        });
+        .catch(() => {});
     }, 0);
     return () => {
       clearTimeout(timer);
       generation.current += 1;
       adding.current = false;
+      clearLoginTimers.current?.();
+      clearLoginTimers.current = null;
       refreshIds.current = new Set();
       const login = pending.current;
       pending.current = null;
       if (login) void api.cancelDeepSeekLogin(login.loginId).catch(() => {});
     };
-  }, [enabled, showError, t]);
+  }, [enabled]);
 
   const select = (id: string | null) => {
     selectionRevision.current += 1;
@@ -72,9 +74,9 @@ export function useDeepSeekAccounts(
     if (id) clearModel();
   };
 
-  const refresh = async (account: api.DeepSeekAccount, quiet = false) => {
+  const refresh = async (account: api.DeepSeekAccount) => {
     const ids = refreshIds.current;
-    if (ids.has(account.id)) return;
+    if (!enabled || ids.has(account.id)) return;
     const current = generation.current;
     ids.add(account.id);
     setRefreshing(new Set(ids));
@@ -83,10 +85,10 @@ export function useDeepSeekAccounts(
       if (current === generation.current)
         setAccounts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     } catch (error) {
-      if (!quiet && current === generation.current) showError(accountError(error, t));
+      if (current === generation.current) showError(accountError(error, t));
     } finally {
       ids.delete(account.id);
-      if (current === generation.current) setRefreshing(new Set(ids));
+      if (ids === refreshIds.current) setRefreshing(new Set(ids));
     }
   };
 
@@ -99,11 +101,28 @@ export function useDeepSeekAccounts(
     setRemainingSeconds(LOGIN_TIMEOUT_SECONDS);
     let login: api.DeepSeekLogin | null = null;
     let ticker: ReturnType<typeof setInterval> | undefined;
+    const deadline = setTimeout(() => {
+      if (current !== generation.current) return;
+      generation.current += 1;
+      adding.current = false;
+      clearInterval(ticker);
+      clearLoginTimers.current = null;
+      pending.current = null;
+      setBusy(false);
+      setRemainingSeconds(0);
+      if (login) void api.cancelDeepSeekLogin(login.loginId).catch(() => {});
+      showError(t('accountError.expired'));
+    }, LOGIN_TIMEOUT_SECONDS * 1000);
+    const clearTimers = () => {
+      clearTimeout(deadline);
+      clearInterval(ticker);
+    };
+    clearLoginTimers.current = clearTimers;
     try {
       login = await api.startDeepSeekLogin(locale);
       if (current !== generation.current) return;
       pending.current = login;
-      const expires = login.expiresAt;
+      const expires = Math.min(login.expiresAt, Date.now() / 1000 + LOGIN_TIMEOUT_SECONDS);
       setRemainingSeconds(Math.max(0, Math.ceil(expires - Date.now() / 1000)));
       ticker = setInterval(() => {
         if (current === generation.current)
@@ -119,7 +138,6 @@ export function useDeepSeekAccounts(
           if (current !== generation.current) return;
           // Do not replace a model explicitly selected while the browser was open.
           if (selectionRevision.current === selectionAtStart) select(account.id);
-          void refresh(account, true);
           return;
         }
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -128,7 +146,8 @@ export function useDeepSeekAccounts(
     } catch (error) {
       if (current === generation.current) showError(accountError(error, t));
     } finally {
-      clearInterval(ticker);
+      clearTimers();
+      if (clearLoginTimers.current === clearTimers) clearLoginTimers.current = null;
       if (login) void api.cancelDeepSeekLogin(login.loginId).catch(() => {});
       if (current === generation.current) {
         pending.current = null;
@@ -149,6 +168,7 @@ export function useDeepSeekAccounts(
       }))
     )
       return;
+    if (current !== generation.current) return;
     try {
       await api.deleteDeepSeekAccount(account.id);
       if (current !== generation.current) return;

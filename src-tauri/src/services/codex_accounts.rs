@@ -4,10 +4,12 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio_util::sync::CancellationToken;
 
 const LEGACY_BACKUP_FILE: &str = "codex-auth.bak.json";
 #[cfg(target_os = "macos")]
@@ -22,6 +24,40 @@ const OAUTH_REDIRECT_PATH: &str = "/auth/callback";
 const OAUTH_SCOPES: &str =
     "openid profile email offline_access api.connectors.read api.connectors.invoke";
 const OAUTH_TIMEOUT_SECONDS: u64 = 60;
+static PENDING_LOGIN: Mutex<Option<(String, CancellationToken)>> = Mutex::new(None);
+
+pub fn start_login() -> Result<String, String> {
+    let mut pending = PENDING_LOGIN.lock().map_err(|_| "accountError.busy")?;
+    if let Some((_, cancel)) = pending.take() {
+        cancel.cancel();
+    }
+    let id = uuid::Uuid::new_v4().to_string();
+    *pending = Some((id.clone(), CancellationToken::new()));
+    Ok(id)
+}
+
+pub fn cancel_login(id: &str) -> Result<(), String> {
+    let mut pending = PENDING_LOGIN.lock().map_err(|_| "accountError.busy")?;
+    if pending.as_ref().is_some_and(|(current, _)| current == id) {
+        if let Some((_, cancel)) = pending.take() {
+            cancel.cancel();
+        }
+    }
+    Ok(())
+}
+
+async fn await_login<T>(
+    cancel: &CancellationToken,
+    attempt: impl std::future::Future<Output = Result<T, String>>,
+) -> Result<T, String> {
+    tokio::select! {
+        biased;
+        _ = cancel.cancelled() => Err("accountError.cancelled".into()),
+        result = tokio::time::timeout(std::time::Duration::from_secs(OAUTH_TIMEOUT_SECONDS), attempt) => {
+            result.map_err(|_| "accountError.expired".to_string())?
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -695,6 +731,28 @@ fn callback_page(title: &str, message: &str) -> String {
 
 pub async fn add_account_via_oauth(
     app_handle: AppHandle,
+    login_id: String,
+    callback_messages: OAuthCallbackMessages,
+) -> Result<CodexAccountSummary, String> {
+    let cancel = PENDING_LOGIN
+        .lock()
+        .map_err(|_| "accountError.busy")?
+        .as_ref()
+        .filter(|(id, _)| id == &login_id)
+        .map(|(_, cancel)| cancel.clone())
+        .ok_or("accountError.cancelled")?;
+    let result = await_login(
+        &cancel,
+        complete_oauth(app_handle, &login_id, callback_messages),
+    )
+    .await;
+    cancel_login(&login_id)?;
+    result
+}
+
+async fn complete_oauth(
+    app_handle: AppHandle,
+    login_id: &str,
     callback_messages: OAuthCallbackMessages,
 ) -> Result<CodexAccountSummary, String> {
     let verifier = random_token();
@@ -721,13 +779,10 @@ pub async fn add_account_via_oauth(
     let auth_url = build_oauth_url(&redirect_uri, &state, &challenge);
     open_browser(&app_handle, &auth_url)?;
 
-    let (mut stream, _) = tokio::time::timeout(
-        std::time::Duration::from_secs(OAUTH_TIMEOUT_SECONDS),
-        listener.accept(),
-    )
-    .await
-    .map_err(|_| "accountError.expired".to_string())?
-    .map_err(|error| format!("accountError.authResponse|{error}"))?;
+    let (mut stream, _) = listener
+        .accept()
+        .await
+        .map_err(|error| format!("accountError.authResponse|{error}"))?;
     let mut request = vec![0u8; 8192];
     let size = stream
         .read(&mut request)
@@ -764,6 +819,14 @@ pub async fn add_account_via_oauth(
         .await
         .map_err(|error| format!("accountError.authResponse|{error}"))?;
     let token_response = exchange_oauth_code(&code, &verifier, &redirect_uri).await?;
+    // Serialize saving against cancellation so an abandoned attempt cannot save a late response.
+    let pending = PENDING_LOGIN.lock().map_err(|_| "accountError.busy")?;
+    if !pending
+        .as_ref()
+        .is_some_and(|(id, cancel)| id == login_id && !cancel.is_cancelled())
+    {
+        return Err("accountError.cancelled".into());
+    }
     store_oauth_token_response(&token_response)
 }
 
@@ -971,6 +1034,57 @@ pub async fn refresh_account_quota(account_id: &str) -> Result<CodexAccountSumma
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn cancelled_login_drops_pending_callback_and_releases_port() {
+        let cancel = CancellationToken::new();
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let entered = std::sync::Arc::new(tokio::sync::Notify::new());
+        let ready = entered.clone();
+        let token = cancel.clone();
+        let task = tokio::spawn(async move {
+            await_login(&token, async move {
+                ready.notify_one();
+                listener
+                    .accept()
+                    .await
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            })
+            .await
+        });
+        entered.notified().await;
+        cancel.cancel();
+        assert_eq!(task.await.unwrap().unwrap_err(), "accountError.cancelled");
+        assert!(TcpListener::bind(address).await.is_ok());
+        assert_eq!(
+            await_login(&CancellationToken::new(), async { Ok::<_, String>(42) })
+                .await
+                .unwrap(),
+            42
+        );
+        let called = std::sync::atomic::AtomicBool::new(false);
+        let result = await_login(&cancel, async {
+            called.store(true, std::sync::atomic::Ordering::SeqCst);
+            Ok::<_, String>(())
+        })
+        .await;
+        assert!(result.is_err());
+        assert!(!called.load(std::sync::atomic::Ordering::SeqCst));
+    }
+
+    #[test]
+    fn cancelling_an_older_login_does_not_cancel_the_new_attempt() {
+        let first = start_login().unwrap();
+        let old_token = PENDING_LOGIN.lock().unwrap().as_ref().unwrap().1.clone();
+        let second = start_login().unwrap();
+        assert!(old_token.is_cancelled());
+        cancel_login(&first).unwrap();
+        assert_eq!(PENDING_LOGIN.lock().unwrap().as_ref().unwrap().0, second);
+        cancel_login(&second).unwrap();
+        assert!(PENDING_LOGIN.lock().unwrap().is_none());
+    }
 
     #[test]
     fn callback_page_preserves_localized_text_and_escapes_html() {

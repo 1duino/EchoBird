@@ -219,11 +219,22 @@ pub fn capture_current_codex_account() -> Result<CodexAccountSummary, String> {
 }
 
 #[tauri::command]
+pub fn start_codex_login() -> Result<String, String> {
+    codex_accounts::start_login()
+}
+
+#[tauri::command]
+pub fn cancel_codex_login(login_id: String) -> Result<(), String> {
+    codex_accounts::cancel_login(&login_id)
+}
+
+#[tauri::command]
 pub async fn add_codex_account_via_oauth(
     app_handle: tauri::AppHandle,
+    login_id: String,
     callback_messages: codex_accounts::OAuthCallbackMessages,
 ) -> Result<CodexAccountSummary, String> {
-    codex_accounts::add_account_via_oauth(app_handle, callback_messages).await
+    codex_accounts::add_account_via_oauth(app_handle, login_id, callback_messages).await
 }
 
 #[tauri::command]

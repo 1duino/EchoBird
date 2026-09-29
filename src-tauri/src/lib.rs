@@ -993,6 +993,8 @@ pub fn run() {
             tool_commands::list_codex_accounts,
             tool_commands::capture_current_codex_account,
             tool_commands::add_codex_account_via_oauth,
+            tool_commands::start_codex_login,
+            tool_commands::cancel_codex_login,
             tool_commands::switch_codex_account,
             tool_commands::refresh_codex_account_quota,
             tool_commands::delete_codex_account,
@@ -1117,6 +1119,30 @@ pub fn run() {
 #[cfg(test)]
 mod window_state_tests {
     use super::*;
+
+    #[test]
+    fn install_index_compiled_references_and_mother_prompt_match() {
+        use std::collections::BTreeSet;
+        let index: serde_json::Value = serde_json::from_str(BUNDLED.install_index_json).unwrap();
+        let expected: BTreeSet<_> = index["ids"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| id.as_str().unwrap())
+            .collect();
+        let compiled: BTreeSet<_> = BUNDLED.install_refs.iter().map(|(id, _)| *id).collect();
+        let prompt_ids: BTreeSet<_> = services::bundled_assets::INSTALLABLE_TOOL_IDS
+            .iter()
+            .copied()
+            .collect();
+        assert_eq!(expected, compiled);
+        assert_eq!(expected, prompt_ids);
+        services::bundled_assets::register(&BUNDLED);
+        let prompt = services::bundled_assets::build_embedded_refs_section();
+        for id in expected {
+            assert!(prompt.contains(&format!("#### `{id}` install reference")));
+        }
+    }
 
     fn state(width: u32, height: u32, x: i32, y: i32) -> WindowStateRecord {
         WindowStateRecord {

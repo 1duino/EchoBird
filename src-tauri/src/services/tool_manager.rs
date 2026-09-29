@@ -1737,13 +1737,21 @@ pub fn get_tool_exe_path(tool_id: &str) -> Option<String> {
         }
         return Some(hit);
     }
+    resolve_install_directory(hit_path, &platform_paths)
+}
+
+fn resolve_install_directory(hit_path: &Path, platform_paths: &[String]) -> Option<String> {
     if hit_path.is_dir() {
-        for name in filenames_of(&platform_paths) {
-            let candidate = hit_path.join(&name);
+        let root = if hit_path.extension().is_some_and(|ext| ext == "app") {
+            hit_path.join("Contents/MacOS")
+        } else {
+            hit_path.to_path_buf()
+        };
+        for name in filenames_of(platform_paths) {
+            let candidate = root.join(&name);
             if candidate.is_file() {
                 log::info!(
-                    "[InstallHints] resolved {} exe via InstallLocation + image name: {}",
-                    tool_id,
+                    "[InstallHints] resolved executable: {}",
                     candidate.display()
                 );
                 return Some(candidate.to_string_lossy().to_string());
@@ -1751,6 +1759,30 @@ pub fn get_tool_exe_path(tool_id: &str) -> Option<String> {
         }
     }
     None
+}
+
+#[test]
+fn resolves_nonstandard_app_bundles_and_plain_install_directories() {
+    let dir = std::env::temp_dir().join(format!("tool-path-{}", uuid::Uuid::new_v4()));
+    let bundle = dir.join("User Applications/Grok Bot.app");
+    let binary = bundle.join("Contents/MacOS/Grok Bot");
+    fs::create_dir_all(binary.parent().unwrap()).unwrap();
+    fs::write(&binary, b"fixture").unwrap();
+    let declared = vec!["/Applications/Grok Bot.app/Contents/MacOS/Grok Bot".to_string()];
+    let resolved = resolve_install_directory(&bundle, &declared).unwrap();
+    assert_eq!(
+        fs::canonicalize(resolved).unwrap(),
+        fs::canonicalize(&binary).unwrap()
+    );
+    let plain = dir.join("plain");
+    fs::create_dir(&plain).unwrap();
+    fs::write(plain.join("tool.exe"), b"fixture").unwrap();
+    assert_eq!(
+        resolve_install_directory(&plain, &["/default/tool.exe".into()]),
+        Some(plain.join("tool.exe").to_string_lossy().into())
+    );
+    assert!(resolve_install_directory(&bundle, &["/missing".into()]).is_none());
+    fs::remove_dir_all(dir).unwrap();
 }
 
 /// Like [`get_tool_exe_path`] but ONLY checks the explicit platform paths,

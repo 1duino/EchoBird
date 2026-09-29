@@ -156,6 +156,7 @@ pub const INSTALLABLE_TOOL_IDS: &[&str] = &[
     "cursor",
     "clashverge",
     "grok",
+    "grokbot",
     "vibe-trading",
     "workbuddy",
     "workbuddyai",
