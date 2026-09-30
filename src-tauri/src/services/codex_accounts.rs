@@ -274,7 +274,7 @@ fn keychain_account(base_dir: &Path) -> String {
 
 #[cfg(target_os = "macos")]
 fn read_keychain_raw(base_dir: &Path) -> Result<Option<Vec<u8>>, String> {
-    let output = std::process::Command::new("security")
+    let output = crate::utils::process::command("security")
         .args(["find-generic-password", "-s", KEYCHAIN_SERVICE, "-a"])
         .arg(keychain_account(base_dir))
         .args(["-w"])
@@ -300,7 +300,7 @@ fn read_keychain_raw(_base_dir: &Path) -> Result<Option<Vec<u8>>, String> {
 fn write_keychain_raw(base_dir: &Path, raw: &[u8]) -> Result<(), String> {
     let secret = String::from_utf8(raw.to_vec())
         .map_err(|error| format!("accountError.keychain|{error}"))?;
-    let output = std::process::Command::new("security")
+    let output = crate::utils::process::command("security")
         .args(["add-generic-password", "-U", "-s", KEYCHAIN_SERVICE, "-a"])
         .arg(keychain_account(base_dir))
         .arg("-w")

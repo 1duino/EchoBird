@@ -14,18 +14,28 @@
     "paths": {
         "win32": [
             "%LOCALAPPDATA%\\Programs\\ChatGPT\\ChatGPT.exe",
-            "%LOCALAPPDATA%\\Programs\\Codex\\Codex.exe"
+            "%LOCALAPPDATA%\\Programs\\Codex\\Codex.exe",
+            "%LOCALAPPDATA%\\Microsoft\\WindowsApps\\ChatGPT.exe",
+            "%LOCALAPPDATA%\\Microsoft\\WindowsApps\\Codex.exe"
         ],
         "darwin": [
             "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
-            "/Applications/Codex.app/Contents/MacOS/Codex"
+            "/Applications/Codex.app/Contents/MacOS/Codex",
+            "~/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+            "~/Applications/Codex.app/Contents/MacOS/Codex"
         ],
         "linux": []
     },
     "installHints": {
-        "windowsDisplayNames": ["ChatGPT", "Codex"],
+        "windowsDisplayNames": [
+            "ChatGPT",
+            "Codex"
+        ],
         "windowsPublisher": "OpenAI",
         "macosAppName": "ChatGPT",
-        "linuxDesktopNames": ["ChatGPT", "chatgpt"]
+        "linuxDesktopNames": [
+            "ChatGPT",
+            "chatgpt"
+        ]
     }
 }

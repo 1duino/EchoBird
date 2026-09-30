@@ -140,15 +140,11 @@ pub async fn start_login() -> Result<(String, i64), String> {
         child: None,
     };
     // Adding an account must not replace the CLI's current login.
-    let mut command = std::process::Command::new(exe);
+    let mut command = crate::utils::process::command(exe);
     command
         .args(["login", "--oauth"])
         .env("GROK_HOME", &pending.dir);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x08000000);
-    }
+
     pending.child = Some(command.spawn().map_err(|_| "accountError.auth")?);
     *guard = Some(pending);
     Ok((id, expires))

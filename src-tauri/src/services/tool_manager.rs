@@ -978,7 +978,7 @@ fn scan_macos_applications(hints: &InstallHints) -> Option<String> {
         }
     }
     // Fallback: mdfind covers non-/Applications installs (e.g. ~/Tools/Foo.app).
-    if let Ok(out) = std::process::Command::new("mdfind")
+    if let Ok(out) = crate::utils::process::command("mdfind")
         .args(["-name", &normalized])
         .output()
     {
@@ -1140,106 +1140,61 @@ fn has_authoritative_detector(pc: &PathsConfig) -> bool {
     !get_platform_paths(&pc.paths).is_empty() || pc.install_hints.is_some()
 }
 
-/// Match an installed MSIX/Store package by identity, scanning `packages_dir`
-/// (normally `%LOCALAPPDATA%\Packages`). A package family name is
-/// `<Identity>_<PublisherHash>`; matching on the identity (not the full name)
-/// keeps detection working when the package is re-signed under a new publisher
-/// hash. Also accepts the `<Identity>Beta` channel sibling, so a beta-channel
-/// install (e.g. `OpenAI.CodexBeta`) registers as present. Returns the matched
-/// package's per-user data dir.
-#[cfg(windows)]
-fn match_installed_msix(
-    packages_dir: &std::path::Path,
-    launch_uri: &str,
-) -> Option<std::path::PathBuf> {
-    let aumid = launch_uri
-        .strip_prefix("shell:AppsFolder\\")
-        .or_else(|| launch_uri.strip_prefix("shell:AppsFolder/"))
-        .unwrap_or(launch_uri);
-    let pfn = aumid.split('!').next()?;
-    let identity = pfn.rsplit_once('_').map(|(id, _)| id).unwrap_or(pfn);
-    let beta = format!("{identity}Beta");
-    for entry in std::fs::read_dir(packages_dir).ok()?.flatten() {
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        let dir_identity = name
-            .rsplit_once('_')
-            .map(|(id, _)| id)
-            .unwrap_or(name.as_ref());
-        if dir_identity == identity || dir_identity == beta.as_str() {
-            return Some(entry.path());
-        }
-    }
-    None
+// Candidate traversal is shared by detection and launch. Only vendor-specific
+// validation belongs here: MiniMax's two compatible editions identify their
+// native config format through app-update.yml.
+fn valid_executable(pc: &PathsConfig, path: &Path) -> bool {
+    path.is_file()
+        && (pc.name != "MiniMax Desktop"
+            || super::tool_config_manager::minimaxcode::desktop_region(path).is_some())
 }
 
-#[cfg(windows)]
-fn installed_manus_aumid() -> Option<String> {
-    // Query the registered package so a fresh Store install is visible before
-    // its per-user data directory has been created by the first launch.
-    let script = "$p=Get-AppxPackage -Name 'ManusAI.Manus' | Select-Object -First 1; if ($p) { $id=(Get-AppxPackageManifest $p).Package.Applications.Application | Select-Object -First 1 -ExpandProperty Id; if ($id) { \"$($p.PackageFamilyName)!$id\" } }";
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
-        .output()
-        .ok()?;
-    let aumid = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (output.status.success() && aumid.starts_with("ManusAI.Manus_vajzd2mq3s8wj!")).then_some(aumid)
-}
-
-// Both MiniMax editions share one entry and the native model config. Respect
-// the existing configured path order when both editions are installed.
-fn find_minimax_desktop(pc: &PathsConfig) -> Option<String> {
+fn find_tool_executable(pc: &PathsConfig, include_hints: bool) -> Option<String> {
     let paths = get_platform_paths(&pc.paths);
-    let hint = scan_install_hints(pc);
-    for path in paths.iter().chain(hint.iter()) {
-        let path = expand_path(path);
-        let candidates = if path.is_dir() && path.extension().is_some_and(|ext| ext == "app") {
-            vec![path.join("Contents/MacOS/MiniMax Code")]
-        } else if path.is_dir() {
-            filenames_of(&paths)
-                .into_iter()
-                .map(|name| path.join(name))
-                .collect()
+    let resolve = |value: &str| {
+        let path = expand_path(value);
+        let candidate = if path.is_dir() {
+            PathBuf::from(resolve_install_directory(&path, &paths)?)
         } else {
-            vec![path]
+            path
         };
-        for candidate in candidates {
-            if candidate.is_file()
-                && super::tool_config_manager::minimaxcode::desktop_region(&candidate).is_some()
-            {
-                return Some(candidate.to_string_lossy().into());
+        valid_executable(pc, &candidate).then(|| candidate.to_string_lossy().into_owned())
+    };
+    paths
+        .iter()
+        .find_map(|p| resolve(p))
+        .or_else(|| {
+            include_hints
+                .then(|| scan_install_hints(pc))
+                .flatten()
+                .and_then(|p| resolve(&p))
+        })
+        .or_else(|| {
+            if !include_hints {
+                return None;
             }
-        }
-    }
-    None
+            filenames_of(&paths).iter().find_map(|name| {
+                let path = which::which(name).ok()?;
+                valid_executable(pc, &path).then(|| path.to_string_lossy().into_owned())
+            })
+        })
 }
 
 /// Detect if a tool is installed, returns executable path
 async fn detect_tool(pc: &PathsConfig) -> Option<String> {
-    if pc.name == "MiniMax Desktop" {
-        return find_minimax_desktop(pc);
-    }
     // 0. Built-in tools (always installed)
     if pc.always_installed {
         return Some("built-in".to_string());
     }
 
-    // 0.5. MSIX / Store apps (Windows): match an installed package under
-    // %LOCALAPPDATA%\Packages by identity (publisher-hash-agnostic), also
-    // accepting the `<Identity>Beta` channel — see match_installed_msix.
+    // Store registration is authoritative, even before the first client launch.
     #[cfg(windows)]
-    if let Some(ref aumid) = pc.launch_uri {
-        if let Ok(local) = std::env::var("LOCALAPPDATA") {
-            let packages = std::path::PathBuf::from(local).join("Packages");
-            if let Some(dir) = match_installed_msix(&packages, aumid) {
-                return Some(normalize_for_display(dir.to_string_lossy().to_string()));
-            }
-        }
-        if aumid.starts_with("shell:AppsFolder\\ManusAI.Manus_") {
-            if let Some(aumid) = installed_manus_aumid() {
-                return Some(format!("shell:AppsFolder\\{aumid}"));
-            }
-        }
+    if let Some(uri) = pc
+        .launch_uri
+        .as_deref()
+        .and_then(super::msix::resolve_launch_uri)
+    {
+        return Some(uri);
     }
 
     // 1. Check custom env var
@@ -1286,32 +1241,10 @@ async fn detect_tool(pc: &PathsConfig) -> Option<String> {
         }
     }
 
-    // 3. Check platform-specific paths
-    let platform_paths = get_platform_paths(&pc.paths);
-    for p in &platform_paths {
-        let expanded = expand_path(p);
-        if expanded.exists() {
-            if pc.require_config_file {
-                if config_file_exists(pc) {
-                    return Some(expanded.to_string_lossy().to_string());
-                }
-            } else {
-                return Some(expanded.to_string_lossy().to_string());
-            }
-        }
-    }
-
-    // 3.5. Install-hints fallback — catch installs at non-default paths.
-    // Windows scans the registry Uninstall hive; macOS checks /Applications +
-    // mdfind; Linux scans .desktop files. Only triggers when the hardcoded
-    // paths above missed, so default installs don't pay the lookup cost.
-    if let Some(hit) = scan_install_hints(pc) {
-        if pc.require_config_file {
-            if config_file_exists(pc) {
-                return Some(hit);
-            }
-        } else {
-            return Some(hit);
+    // Paths and OS install hints use the same resolver as the launcher.
+    if !pc.require_config_file || config_file_exists(pc) {
+        if let Some(path) = find_tool_executable(pc, true) {
+            return Some(path);
         }
     }
 
@@ -1445,17 +1378,7 @@ async fn find_skills_path(pc: &PathsConfig) -> Option<String> {
 
     // 3. npm global module
     if let Some(ref npm_module) = sp.npm_module {
-        #[cfg(windows)]
-        let npm_output = {
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            tokio::process::Command::new("npm")
-                .args(["root", "-g"])
-                .creation_flags(CREATE_NO_WINDOW)
-                .output()
-                .await
-        };
-        #[cfg(not(windows))]
-        let npm_output = tokio::process::Command::new("npm")
+        let npm_output = crate::utils::process::async_command("npm")
             .args(["root", "-g"])
             .output()
             .await;
@@ -1723,40 +1646,7 @@ pub fn get_tool_start_command(tool_id: &str) -> Option<String> {
 pub fn get_tool_exe_path(tool_id: &str) -> Option<String> {
     let defs = get_definitions();
     let def = defs.iter().find(|d| d.id == tool_id)?;
-    if tool_id == "minimaxdesktop" {
-        return find_minimax_desktop(&def.paths_config);
-    }
-    let platform_paths = get_platform_paths(&def.paths_config.paths);
-    for p in &platform_paths {
-        let expanded = expand_path(p);
-        if expanded.exists() {
-            return Some(expanded.to_string_lossy().to_string());
-        }
-    }
-    // Fallback: registry install-hints (Squirrel apps like Claude Desktop
-    // where Claude.exe lives under app-<version>/). When the registry only
-    // has InstallLocation (a directory), join the declared exe image name.
-    let hit = scan_install_hints(&def.paths_config)?;
-    let hit_path = std::path::Path::new(&hit);
-    if hit_path.is_file() {
-        // Defense-in-depth: scan_windows_registry already gates on .exe, but
-        // reject any non-executable file here too so a future regression in
-        // the registry path can't slip a .ico/.dll through to Start-Process
-        // (which would open it with the default image viewer, not launch it).
-        #[cfg(windows)]
-        {
-            if !is_windows_exe(&hit) {
-                log::warn!(
-                    "[InstallHints] Skipping non-exe path for {}: {}",
-                    tool_id,
-                    hit
-                );
-                return None;
-            }
-        }
-        return Some(hit);
-    }
-    resolve_install_directory(hit_path, &platform_paths)
+    find_tool_executable(&def.paths_config, true)
 }
 
 fn resolve_install_directory(hit_path: &Path, platform_paths: &[String]) -> Option<String> {
@@ -1766,7 +1656,13 @@ fn resolve_install_directory(hit_path: &Path, platform_paths: &[String]) -> Opti
         } else {
             hit_path.to_path_buf()
         };
-        for name in filenames_of(platform_paths) {
+        let mut names = filenames_of(platform_paths);
+        if hit_path.extension().is_some_and(|ext| ext == "app") {
+            if let Some(name) = hit_path.file_stem().and_then(|s| s.to_str()) {
+                names.push(name.to_owned());
+            }
+        }
+        for name in names {
             let candidate = root.join(&name);
             if candidate.is_file() {
                 log::info!(
@@ -1800,7 +1696,14 @@ fn resolves_nonstandard_app_bundles_and_plain_install_directories() {
         resolve_install_directory(&plain, &["/default/tool.exe".into()]),
         Some(plain.join("tool.exe").to_string_lossy().into())
     );
-    assert!(resolve_install_directory(&bundle, &["/missing".into()]).is_none());
+    // A custom bundle can resolve its own executable even without a matching default filename.
+    assert_eq!(
+        fs::canonicalize(resolve_install_directory(&bundle, &["/missing".into()]).unwrap())
+            .unwrap(),
+        fs::canonicalize(&binary).unwrap()
+    );
+    fs::remove_file(&binary).unwrap();
+    assert!(resolve_install_directory(&bundle, &declared).is_none());
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -1815,17 +1718,7 @@ fn resolves_nonstandard_app_bundles_and_plain_install_directories() {
 pub fn get_tool_declared_exe_path(tool_id: &str) -> Option<String> {
     let defs = get_definitions();
     let def = defs.iter().find(|d| d.id == tool_id)?;
-    if tool_id == "minimaxdesktop" {
-        return get_tool_exe_path(tool_id);
-    }
-    let platform_paths = get_platform_paths(&def.paths_config.paths);
-    for p in &platform_paths {
-        let expanded = expand_path(p);
-        if expanded.exists() {
-            return Some(expanded.to_string_lossy().to_string());
-        }
-    }
-    None
+    find_tool_executable(&def.paths_config, false)
 }
 
 /// True if the tool is a GUI desktop app whose provider config EchoBird
@@ -2042,12 +1935,11 @@ pub fn get_tool_launch_uri(tool_id: &str) -> Option<String> {
         .launch_uri
         .clone();
     #[cfg(windows)]
-    if tool_id == "manus" {
-        // The Store product identifies the package family, but the manifest
-        // controls the app ID after '!'. Resolve it from the installed package.
-        if let Some(aumid) = installed_manus_aumid() {
-            return Some(format!("shell:AppsFolder\\{aumid}"));
-        }
+    if let Some(uri) = configured
+        .as_deref()
+        .and_then(super::msix::resolve_launch_uri)
+    {
+        return Some(uri);
     }
     configured
 }
@@ -2092,6 +1984,41 @@ mod tests {
     use super::is_windows_exe;
     use crate::models::tool::{PathsConfig, ToolCategory};
 
+    #[tokio::test]
+    async fn detection_and_launch_share_custom_paths_and_reject_leftover_directories() {
+        let root = std::env::temp_dir().join(format!("echobird-paths-{}", uuid::Uuid::new_v4()));
+        let custom = root.join("custom install");
+        let missing = root.join("removed install");
+        std::fs::create_dir_all(&custom).unwrap();
+        std::fs::create_dir_all(&missing).unwrap();
+        let binary = custom.join(format!("{}.exe", uuid::Uuid::new_v4()));
+        std::fs::write(&binary, b"fixture").unwrap();
+        let mut definition: PathsConfig =
+            serde_json::from_str(include_str!("../../../tools/chatgptdesktop/paths.json")).unwrap();
+        definition.launch_uri = None;
+        definition.install_hints = None;
+        definition.config_dir = missing.to_string_lossy().into_owned();
+        definition.detect_by_config_dir = true;
+        let paths = vec![
+            missing.to_string_lossy().into_owned(),
+            custom.to_string_lossy().into_owned(),
+            root.join(binary.file_name().unwrap())
+                .to_string_lossy()
+                .into_owned(),
+        ];
+        definition.paths.win32 = Some(paths.clone());
+        definition.paths.darwin = Some(paths.clone());
+        definition.paths.linux = Some(paths);
+        let expected = Some(binary.to_string_lossy().into_owned());
+        assert_eq!(super::find_tool_executable(&definition, false), expected);
+        assert_eq!(super::find_tool_executable(&definition, true), expected);
+        assert_eq!(super::detect_tool(&definition).await, expected);
+        std::fs::remove_file(binary).unwrap();
+        assert!(super::find_tool_executable(&definition, true).is_none());
+        assert!(super::detect_tool(&definition).await.is_none());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn tool_website_prefers_homepage_over_legacy_repository() {
         assert_eq!(
@@ -2135,68 +2062,6 @@ mod tests {
             super::resolve_tool_website(None, Some(r#"{"docs":"https://docs.example/"}"#)),
             None
         );
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn msix_match_detects_beta_channel_ignoring_publisher_hash() {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static N: AtomicU64 = AtomicU64::new(0);
-        let pkgs = std::env::temp_dir().join(format!(
-            "echobird_msix_{}_{}",
-            std::process::id(),
-            N.fetch_add(1, Ordering::Relaxed)
-        ));
-        // Beta channel installed, with a publisher hash different from the
-        // hardcoded stable one in the launch URI — must still match.
-        let beta = pkgs.join("OpenAI.CodexBeta_zzzzzzzzzzzzz");
-        std::fs::create_dir_all(&beta).unwrap();
-
-        let got =
-            super::match_installed_msix(&pkgs, "shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App");
-        assert_eq!(got.as_deref(), Some(beta.as_path()));
-
-        let _ = std::fs::remove_dir_all(&pkgs);
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn msix_match_returns_none_when_no_codex_package() {
-        use std::sync::atomic::{AtomicU64, Ordering};
-        static N: AtomicU64 = AtomicU64::new(0);
-        let pkgs = std::env::temp_dir().join(format!(
-            "echobird_msix_none_{}_{}",
-            std::process::id(),
-            N.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir_all(pkgs.join("Microsoft.Unrelated_abcdefghijklm")).unwrap();
-
-        let got =
-            super::match_installed_msix(&pkgs, "shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App");
-        assert!(got.is_none());
-
-        let _ = std::fs::remove_dir_all(&pkgs);
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn manus_store_identity_detects_only_manus_package() {
-        let pkgs =
-            std::env::temp_dir().join(format!("echobird_manus_msix_{}", uuid::Uuid::new_v4()));
-        let manus = pkgs.join("ManusAI.Manus_vajzd2mq3s8wj");
-        std::fs::create_dir_all(&manus).unwrap();
-        std::fs::create_dir_all(pkgs.join("Unrelated.Manus_vajzd2mq3s8wj")).unwrap();
-
-        assert_eq!(
-            super::match_installed_msix(
-                &pkgs,
-                "shell:AppsFolder\\ManusAI.Manus_vajzd2mq3s8wj!ManusApp",
-            )
-            .as_deref(),
-            Some(manus.as_path())
-        );
-
-        let _ = std::fs::remove_dir_all(&pkgs);
     }
 
     #[test]
@@ -2589,7 +2454,7 @@ mod tests {
             definition.paths.darwin = Some(paths.clone());
             definition.paths.linux = Some(paths.clone());
             assert_eq!(
-                super::find_minimax_desktop(&definition),
+                super::find_tool_executable(&definition, true),
                 Some(paths[0].clone())
             );
             paths.reverse();
@@ -2612,7 +2477,7 @@ mod tests {
             );
             let path = exe.to_string_lossy().into_owned();
             super::apply_user_path_overrides(&mut definition, std::slice::from_ref(&path));
-            assert_eq!(super::find_minimax_desktop(&definition), Some(path));
+            assert_eq!(super::find_tool_executable(&definition, true), Some(path));
         }
     }
 
@@ -2638,8 +2503,8 @@ mod tests {
         definition.paths.darwin = Some(paths.clone());
         definition.paths.linux = Some(paths);
         assert_eq!(
-            super::find_minimax_desktop(&definition),
-            Some(exe.to_string_lossy().into_owned())
+            std::fs::canonicalize(super::find_tool_executable(&definition, true).unwrap()).unwrap(),
+            std::fs::canonicalize(exe).unwrap()
         );
         std::fs::remove_dir_all(root).unwrap();
     }

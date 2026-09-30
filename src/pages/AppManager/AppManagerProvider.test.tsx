@@ -24,6 +24,8 @@ vi.mock('./useClaudeCodeAccounts', () => ({ useClaudeCodeAccounts: () => ({}) })
 vi.mock('./useWorkBuddyAccounts', () => ({ useWorkBuddyAccounts: () => ({}) }));
 vi.mock('./useDeepSeekAccounts', () => ({ useDeepSeekAccounts: () => ({}) }));
 vi.mock('../../api/tauri', () => ({
+  listCodexAccounts: vi.fn(),
+  cancelCodexLogin: vi.fn(),
   getModels: vi.fn().mockResolvedValue([]),
   getInstallIndex: vi.fn().mockResolvedValue('{"ids":[]}'),
   listGrokBotAccounts: vi.fn().mockRejectedValue(new Error('accountError.read')),

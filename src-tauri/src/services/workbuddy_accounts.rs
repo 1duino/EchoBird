@@ -643,9 +643,8 @@ async fn close_app(edition: Edition) -> Result<(), String> {
             Edition::Ai => "WorkBuddyAI",
         };
         let script = windows_close_script(name);
-        let status = tokio::process::Command::new("powershell")
+        let status = crate::utils::process::async_command("powershell")
             .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-            .creation_flags(0x08000000)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status()
@@ -664,7 +663,7 @@ async fn close_app(edition: Edition) -> Result<(), String> {
             Edition::Ai => "com.workbuddy.workbuddy-ai",
         };
         let script = format!("tell application \"System Events\"\nif exists (processes whose bundle identifier is \"{bundle}\") then\ntell application id \"{bundle}\" to quit\nrepeat 100 times\nif not (exists (processes whose bundle identifier is \"{bundle}\")) then return\ndelay 0.2\nend repeat\nerror \"WorkBuddy is still running\"\nend if\nend tell");
-        let status = tokio::process::Command::new("osascript")
+        let status = crate::utils::process::async_command("osascript")
             .args(["-e", &script])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -783,7 +782,6 @@ mod tests {
     }
     #[cfg(windows)]
     fn run_close_fixture(phase: &str, exits: bool) -> bool {
-        use std::os::windows::process::CommandExt;
         // Fake process objects reproduce OS exit races without touching real applications.
         let fixture = format!(
             r#"
@@ -798,14 +796,13 @@ function Get-Process {{ if (-not $global:fixture.HasExited) {{ $global:fixture }
         let script = windows_close_script("EchoBirdTestOnly")
             .replace("AddSeconds(8)", "AddSeconds(0)")
             .replace("AddSeconds(10)", "AddSeconds(0)");
-        std::process::Command::new("powershell")
+        crate::utils::process::command("powershell")
             .args([
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
                 &format!("{fixture}\n{script}"),
             ])
-            .creation_flags(0x08000000)
             .output()
             .unwrap()
             .status

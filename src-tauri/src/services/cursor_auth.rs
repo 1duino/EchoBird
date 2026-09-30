@@ -221,6 +221,24 @@ fn valid_pending(pending: &Option<Pending>, id: &str, now: i64) -> Result<Pendin
     Ok(p.clone())
 }
 
+#[cfg(windows)]
+pub(super) async fn close_windows_client(name: &str, force: bool) -> Result<(), String> {
+    // Editors keep their unsaved-work confirmation; existing background clients
+    // can request their established force-close behavior without another script.
+    let script = "$ErrorActionPreference='Stop'; $name=$env:ECHOBIRD_CLIENT_NAME; if($env:ECHOBIRD_CLIENT_FORCE -eq '1') { Get-Process -Name $name -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue } else { Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle -ne 0} | ForEach-Object { [void]$_.CloseMainWindow() } }; $end=(Get-Date).AddSeconds(10); while(Get-Process -Name $name -ErrorAction SilentlyContinue) { if((Get-Date) -ge $end){exit 1}; Start-Sleep -Milliseconds 100 }; exit 0";
+    let status = crate::utils::process::async_command("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .env("ECHOBIRD_CLIENT_NAME", name)
+        .env("ECHOBIRD_CLIENT_FORCE", if force { "1" } else { "0" })
+        .status()
+        .await
+        .map_err(|_| "accountError.closeClient")?;
+    if !status.success() {
+        return Err("accountError.closeClient".into());
+    }
+    Ok(())
+}
+
 #[cfg(unix)]
 pub(super) async fn close_client(tool: &str, name: &str) -> Result<(), String> {
     #[cfg(target_os = "macos")]
@@ -230,7 +248,7 @@ pub(super) async fn close_client(tool: &str, name: &str) -> Result<(), String> {
         let script = format!(
             "if application \"{name}\" is running then\ntell application \"{name}\" to quit\nrepeat 100 times\nif application \"{name}\" is not running then return\ndelay 0.1\nend repeat\nerror \"Client is still running\"\nend if"
         );
-        let mut command = tokio::process::Command::new("/usr/bin/osascript");
+        let mut command = crate::utils::process::async_command("/usr/bin/osascript");
         command
             .args(["-e", &script])
             .kill_on_drop(true)

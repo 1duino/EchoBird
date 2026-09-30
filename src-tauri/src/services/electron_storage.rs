@@ -82,7 +82,7 @@ pub(super) fn cipher(dir: &Path) -> Result<Cipher, String> {
             .file_name()
             .and_then(|s| s.to_str())
             .ok_or("accountError.home")?;
-        let output = std::process::Command::new("/usr/bin/security")
+        let output = crate::utils::process::command("/usr/bin/security")
             .args([
                 "find-generic-password",
                 "-s",

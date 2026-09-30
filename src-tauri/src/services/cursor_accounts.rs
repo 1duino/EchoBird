@@ -373,18 +373,7 @@ pub async fn switch(id: &str) -> Result<Account, String> {
 async fn close_app() -> Result<(), String> {
     #[cfg(windows)]
     {
-        // Never force-kill an editor: a save confirmation may need the user's attention.
-        let script = "$ErrorActionPreference='Stop'; Get-Process -Name Cursor -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle -ne 0} | ForEach-Object { [void]$_.CloseMainWindow() }; $end=(Get-Date).AddSeconds(10); while(Get-Process -Name Cursor -ErrorAction SilentlyContinue) { if((Get-Date) -ge $end){exit 1}; Start-Sleep -Milliseconds 100 }; exit 0";
-        let status = tokio::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", script])
-            .creation_flags(0x08000000)
-            .status()
-            .await
-            .map_err(|_| "accountError.closeClient")?;
-        if !status.success() {
-            return Err("accountError.closeClient".into());
-        }
-        Ok(())
+        super::cursor_auth::close_windows_client("Cursor", false).await
     }
     #[cfg(unix)]
     {

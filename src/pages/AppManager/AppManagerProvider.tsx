@@ -6,12 +6,11 @@ import { ClaudeCodeLoginDialog } from './ClaudeCodeLoginDialog';
 import { useWorkBuddyAccounts } from './useWorkBuddyAccounts';
 import { useClaudeCodeAccounts } from './useClaudeCodeAccounts';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useConfirm } from '../../components/ConfirmDialog';
+import { useCodexAccounts } from './useCodexAccounts';
 import { EFFORT_PULSE_ONESHOT_MS } from '../../components';
 import { useI18n } from '../../hooks/useI18n';
 import * as api from '../../api/tauri';
 import type { ModelConfig } from '../../api/types';
-import type { CodexAccount } from '../../api/tauri';
 import { AppManagerContext } from './context';
 import { useToolsStore } from '../../stores/toolsStore';
 import { useNavigationStore } from '../../stores/navigationStore';
@@ -26,8 +25,6 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog';
 // every other model applies silently. Same keys ModelCard uses for the Xiaomi
 // icon — a model counts as MiMo when its name/modelId contains xiaomi / 小米 / mimo.
 const MIMO_KEYS = ['xiaomi', '小米', 'mimo'];
-const CODEX_OAUTH_TIMEOUT_SECONDS = 60;
-const MAX_CONCURRENT_CODEX_QUOTA_REFRESHES = 5;
 const isMimoModel = (m?: ModelConfig): boolean => {
   if (!m) return false;
   const text = `${m.name} ${m.modelId || ''}`.toLowerCase();
@@ -40,7 +37,6 @@ interface AppManagerProviderProps {
 
 export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children }) => {
   const { t, locale } = useI18n();
-  const confirm = useConfirm();
 
   // From stores (replaces drilled props)
   const { detectedTools, setDetectedTools, isScanning, scanTools } = useToolsStore();
@@ -130,206 +126,27 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     isActive && detectedTools.some((tool) => tool.id === selectedTool && tool.installed);
   const [isLaunching, setIsLaunching] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
-  const [codexAccounts, setCodexAccounts] = useState<CodexAccount[]>([]);
-  const [selectedCodexAccountId, setSelectedCodexAccountIdRaw] = useState<string | null>(null);
-  const [isLoadingCodexAccounts, setIsLoadingCodexAccounts] = useState(false);
-  const [isAddingCodexAccount, setIsAddingCodexAccount] = useState(false);
-  const [codexOAuthRemainingSeconds, setCodexOAuthRemainingSeconds] = useState(0);
-  const [refreshingCodexAccountIds, setRefreshingCodexAccountIds] = useState<Set<string>>(
-    () => new Set()
-  );
-  const refreshingCodexAccountIdsRef = useRef<Set<string>>(new Set());
-  const codexGeneration = useRef(0);
-  const codexLogin = useRef<string | null>(null);
-  const codexLoginDeadline = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const addingCodex = useRef(false);
-  const codexSelectionRevision = useRef(0);
-
-  useEffect(() => {
-    if (!isAddingCodexAccount) return;
-    const deadline = Date.now() + CODEX_OAUTH_TIMEOUT_SECONDS * 1000;
-    const update = () => {
-      setCodexOAuthRemainingSeconds(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
-    };
-    update();
-    const timer = setInterval(update, 250);
-    return () => clearInterval(timer);
-  }, [isAddingCodexAccount]);
-
   const isCodexTool = selectedTool === 'codex' || selectedTool === 'chatgptdesktop';
-  const codexEnabled = accountsEnabled && isCodexTool;
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsAddingCodexAccount(false);
-      setIsLoadingCodexAccounts(false);
-      setCodexOAuthRemainingSeconds(0);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      codexGeneration.current += 1;
-      addingCodex.current = false;
-      if (codexLoginDeadline.current) clearTimeout(codexLoginDeadline.current);
-      codexLoginDeadline.current = null;
-      const loginId = codexLogin.current;
-      codexLogin.current = null;
-      if (loginId) void api.cancelCodexLogin(loginId).catch(() => {});
-    };
-  }, [codexEnabled, selectedTool]);
-  const selectCodexAccount = useCallback(
-    (accountId: string | null) => {
-      codexSelectionRevision.current += 1;
-      setSelectedCodexAccountIdRaw(accountId);
-      if (!selectedTool || (selectedTool !== 'codex' && selectedTool !== 'chatgptdesktop')) return;
-      setToolModelConfig((prev) => ({
-        ...prev,
-        codex: null,
-        chatgptdesktop: null,
-      }));
-    },
-    [selectedTool]
+  const codexManaged = useCodexAccounts(
+    accountsEnabled && isCodexTool,
+    !!(selectedTool && toolModelConfig[selectedTool]),
+    () => setToolModelConfig((prev) => ({ ...prev, codex: null, chatgptdesktop: null })),
+    setApplyError,
+    selectedTool ?? ''
   );
-  const loadCodexAccounts = useCallback(async () => {
-    const generation = codexGeneration.current;
-    setIsLoadingCodexAccounts(true);
-    try {
-      const accounts = await api.listCodexAccounts();
-      if (generation === codexGeneration.current) setCodexAccounts(accounts);
-    } catch (error) {
-      console.error('[AppManager] Failed to load Codex accounts:', error);
-    } finally {
-      if (generation === codexGeneration.current) setIsLoadingCodexAccounts(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!codexEnabled) return;
-    let ignore = false;
-    void api
-      .listCodexAccounts()
-      .then((accounts) => {
-        if (ignore) return;
-        setCodexAccounts(accounts);
-        const currentModel = selectedTool ? toolModelConfig[selectedTool] : null;
-        if (!currentModel) {
-          setSelectedCodexAccountIdRaw((current) => {
-            if (current && accounts.some((account) => account.id === current)) return current;
-            return accounts.find((account) => account.active)?.id ?? null;
-          });
-        }
-      })
-      .catch((error) => console.error('[AppManager] Failed to load Codex accounts:', error));
-    return () => {
-      ignore = true;
-    };
-  }, [codexEnabled, selectedTool, toolModelConfig]);
-
-  const addCodexAccount = useCallback(async () => {
-    if (!codexEnabled || addingCodex.current) return;
-    addingCodex.current = true;
-    const generation = codexGeneration.current;
-    const revision = codexSelectionRevision.current;
-    setIsAddingCodexAccount(true);
-    setIsLoadingCodexAccounts(true);
-    let loginId: string | null = null;
-    const deadline = setTimeout(() => {
-      if (generation !== codexGeneration.current) return;
-      codexGeneration.current += 1;
-      addingCodex.current = false;
-      codexLogin.current = null;
-      codexLoginDeadline.current = null;
-      setIsAddingCodexAccount(false);
-      setIsLoadingCodexAccounts(false);
-      setCodexOAuthRemainingSeconds(0);
-      if (loginId) void api.cancelCodexLogin(loginId).catch(() => {});
-      setApplyError(t('accountError.expired'));
-    }, CODEX_OAUTH_TIMEOUT_SECONDS * 1000);
-    codexLoginDeadline.current = deadline;
-    try {
-      loginId = await api.startCodexLogin();
-      if (generation !== codexGeneration.current) return;
-      codexLogin.current = loginId;
-      const captured = await api.addCodexAccountViaOAuth(loginId, {
-        complete: t('accountError.complete'),
-        closeWindow: t('accountError.closeWindow'),
-        failed: t('accountError.callbackFailed'),
-      });
-      if (generation !== codexGeneration.current) return;
-      await loadCodexAccounts();
-      if (generation === codexGeneration.current && revision === codexSelectionRevision.current)
-        selectCodexAccount(captured.id);
-    } catch (error) {
-      if (generation === codexGeneration.current) setApplyError(accountError(error, t));
-    } finally {
-      clearTimeout(deadline);
-      if (codexLoginDeadline.current === deadline) codexLoginDeadline.current = null;
-      if (loginId) void api.cancelCodexLogin(loginId).catch(() => {});
-      if (generation === codexGeneration.current) {
-        codexLogin.current = null;
-        addingCodex.current = false;
-        setIsAddingCodexAccount(false);
-        setCodexOAuthRemainingSeconds(0);
-        setIsLoadingCodexAccounts(false);
-      }
-    }
-  }, [codexEnabled, loadCodexAccounts, selectCodexAccount, t]);
-
-  const deleteCodexAccount = useCallback(
-    async (account: CodexAccount) => {
-      if (!codexEnabled) return;
-      const generation = codexGeneration.current;
-      const approved = await confirm({
-        title: t('agent.deleteAccountTitle'),
-        message: t('agent.deleteAccountConfirm').replace('{email}', account.email),
-        confirmText: t('btn.delete'),
-        type: 'danger',
-      });
-      if (!approved || generation !== codexGeneration.current) return;
-      try {
-        await api.deleteCodexAccount(account.id);
-        if (generation !== codexGeneration.current) return;
-        setSelectedCodexAccountIdRaw((current) => (current === account.id ? null : current));
-        await loadCodexAccounts();
-      } catch (error) {
-        if (generation === codexGeneration.current) setApplyError(accountError(error, t));
-      }
-    },
-    [codexEnabled, confirm, loadCodexAccounts, t]
-  );
-
-  const refreshCodexAccountQuota = useCallback(
-    async (account: CodexAccount) => {
-      if (!codexEnabled) return;
-      const generation = codexGeneration.current;
-      const refreshing = refreshingCodexAccountIdsRef.current;
-      if (
-        isLoadingCodexAccounts ||
-        refreshing.has(account.id) ||
-        refreshing.size >= MAX_CONCURRENT_CODEX_QUOTA_REFRESHES
-      )
-        return;
-      refreshing.add(account.id);
-      setRefreshingCodexAccountIds(new Set(refreshing));
-      try {
-        const refreshed = await api.refreshCodexAccountQuota(account.id);
-        if (generation !== codexGeneration.current) return;
-        setCodexAccounts((current) =>
-          current.map((item) => (item.id === refreshed.id ? refreshed : item))
-        );
-      } catch (error) {
-        if (generation !== codexGeneration.current) return;
-        const message = accountError(error, t);
-        setApplyError(
-          t('agent.refreshAccountFailed')
-            .replace('{email}', account.email)
-            .replace('{error}', message)
-        );
-      } finally {
-        refreshing.delete(account.id);
-        setRefreshingCodexAccountIds(new Set(refreshing));
-      }
-    },
-    [codexEnabled, isLoadingCodexAccounts, setApplyError, t]
-  );
+  const {
+    accounts: codexAccounts,
+    selectedId: selectedCodexAccountId,
+    select: selectCodexAccount,
+    loading: isLoadingCodexAccounts,
+    busy: isAddingCodexAccount,
+    remainingSeconds: codexOAuthRemainingSeconds,
+    refreshing: refreshingCodexAccountIds,
+    reload: loadCodexAccounts,
+    add: addCodexAccount,
+    remove: deleteCodexAccount,
+    refresh: refreshCodexAccountQuota,
+  } = codexManaged;
 
   // One-shot "applied!" pulse. When a model config takes effect (via
   // handleLaunch) the just-applied model's card plays the effort pulse once.
@@ -521,8 +338,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     if (toolId === 'claudecode') claudeCodeAccounts.setSelectedId(null);
     if (toolId === 'workbuddy' || toolId === 'workbuddyai') workBuddyAccounts.select(null);
     if (toolId === 'codex' || toolId === 'chatgptdesktop') {
-      codexSelectionRevision.current += 1;
-      setSelectedCodexAccountIdRaw(null);
+      codexManaged.select(null);
     }
     setToolModelConfig((prev) => ({
       ...prev,

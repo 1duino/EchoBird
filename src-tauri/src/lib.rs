@@ -611,11 +611,8 @@ fn capture_window_state(window: &tauri::WebviewWindow) -> Option<WindowStateReco
 fn force_kill_pid(pid: u32, label: &str) -> bool {
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        let status = std::process::Command::new("taskkill")
+        let status = crate::utils::process::command("taskkill")
             .args(["/F", "/PID", &pid.to_string()])
-            .creation_flags(CREATE_NO_WINDOW)
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .status();
@@ -630,7 +627,7 @@ fn force_kill_pid(pid: u32, label: &str) -> bool {
 
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
-        let status = std::process::Command::new("kill")
+        let status = crate::utils::process::command("kill")
             .args(["-9", &pid.to_string()])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())

@@ -28,6 +28,8 @@ pub(crate) mod local_proxy;
 pub mod manus_accounts;
 pub mod model_directory;
 pub mod model_manager;
+#[cfg(any(windows, test))]
+pub(crate) mod msix;
 pub mod parasite;
 pub mod process_manager;
 pub mod self_update;

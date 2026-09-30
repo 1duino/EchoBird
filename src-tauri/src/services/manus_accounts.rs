@@ -55,6 +55,19 @@ struct Pending {
     nonce: String,
     previous: Option<String>,
     expires: i64,
+    cancelled: bool,
+}
+
+impl Pending {
+    fn validate(&self, id: &str, now: i64) -> Result<(), String> {
+        if self.id != id || self.cancelled {
+            return Err("accountError.cancelled".into());
+        }
+        if now >= self.expires {
+            return Err("accountError.expired".into());
+        }
+        Ok(())
+    }
 }
 
 fn data_dir() -> Result<PathBuf, String> {
@@ -237,17 +250,7 @@ fn set_nonce(dir: &Path, value: Option<&str>) -> Result<(), String> {
 async fn close_app() -> Result<(), String> {
     #[cfg(windows)]
     {
-        let script = "$ErrorActionPreference='Stop'; Get-Process -Name Manus -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle -ne 0} | ForEach-Object { [void]$_.CloseMainWindow() }; $end=(Get-Date).AddSeconds(10); while(Get-Process -Name Manus -ErrorAction SilentlyContinue) { if((Get-Date) -ge $end){exit 1}; Start-Sleep -Milliseconds 100 }; exit 0";
-        let status = tokio::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", script])
-            .creation_flags(0x08000000)
-            .status()
-            .await
-            .map_err(|_| "accountError.closeClient")?;
-        if status.success() {
-            return Ok(());
-        }
-        Err("accountError.closeClient".into())
+        super::cursor_auth::close_windows_client("Manus", false).await
     }
     #[cfg(target_os = "macos")]
     {
@@ -401,6 +404,7 @@ pub async fn start_login() -> Result<LoginStart, String> {
         nonce: nonce_value.clone(),
         previous,
         expires,
+        cancelled: false,
     });
     let mut url = url::Url::parse("https://manus.im/login").map_err(|_| "accountError.auth")?;
     url.query_pairs_mut().extend_pairs([
@@ -421,9 +425,7 @@ pub async fn poll_login(id: &str) -> Result<Option<Account>, String> {
         let guard = PENDING.lock().map_err(|_| "accountError.busy")?;
         let pending = guard.as_ref().filter(|pending| pending.id == id);
         let pending = pending.ok_or("accountError.cancelled")?;
-        if chrono::Utc::now().timestamp() >= pending.expires {
-            return Err("accountError.expired".into());
-        }
+        pending.validate(id, chrono::Utc::now().timestamp())?;
         pending.clone()
     };
     let dir = data_dir()?;
@@ -431,13 +433,12 @@ pub async fn poll_login(id: &str) -> Result<Option<Account>, String> {
         return Ok(None);
     }
     let _guard = ACCOUNT_LOCK.lock().await;
-    if !PENDING
-        .lock()
-        .map_err(|_| "accountError.busy")?
-        .as_ref()
-        .is_some_and(|current| current.id == id)
     {
-        return Err("accountError.cancelled".into());
+        let guard = PENDING.lock().map_err(|_| "accountError.busy")?;
+        guard
+            .as_ref()
+            .ok_or("accountError.cancelled")?
+            .validate(id, chrono::Utc::now().timestamp())?;
     }
     close_app().await?;
     let result = async {
@@ -446,6 +447,13 @@ pub async fn poll_login(id: &str) -> Result<Option<Account>, String> {
             return Err("accountError.authResponse".into());
         }
         let mut account = profile(&token).await?;
+        // Cancellation must win even while the profile request holds ACCOUNT_LOCK.
+        // Keep this guard through the synchronous save so cancellation cannot race it.
+        let guard = PENDING.lock().map_err(|_| "accountError.busy")?;
+        guard
+            .as_ref()
+            .ok_or("accountError.cancelled")?
+            .validate(id, chrono::Utc::now().timestamp())?;
         let mut store = load_store()?;
         account.credits = store
             .get(&account.id)
@@ -469,6 +477,14 @@ pub async fn poll_login(id: &str) -> Result<Option<Account>, String> {
 }
 
 pub async fn cancel_login(id: &str) -> Result<(), String> {
+    {
+        let mut guard = PENDING.lock().map_err(|_| "accountError.busy")?;
+        let Some(pending) = guard.as_mut().filter(|pending| pending.id == id) else {
+            return Ok(());
+        };
+        // Signal first; waiting for native-client rollback must not allow a late save.
+        pending.cancelled = true;
+    }
     let _guard = ACCOUNT_LOCK.lock().await;
     let pending = PENDING
         .lock()
@@ -546,6 +562,38 @@ pub async fn delete(id: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn late_login_results_cannot_commit_after_cancel_expiry_or_replacement() {
+        let mut pending = Pending {
+            id: "current".into(),
+            nonce: "nonce".into(),
+            previous: None,
+            expires: 60,
+            cancelled: false,
+        };
+        let mut saved = Vec::new();
+        let mut commit = |pending: &Pending, id: &str, now| {
+            pending.validate(id, now)?;
+            saved.push(id.to_string());
+            Ok::<_, String>(())
+        };
+        assert!(commit(&pending, "current", 59).is_ok());
+        assert_eq!(
+            commit(&pending, "current", 60).unwrap_err(),
+            "accountError.expired"
+        );
+        assert_eq!(
+            commit(&pending, "earlier", 59).unwrap_err(),
+            "accountError.cancelled"
+        );
+        pending.cancelled = true;
+        assert_eq!(
+            commit(&pending, "current", 59).unwrap_err(),
+            "accountError.cancelled"
+        );
+        assert_eq!(saved, ["current"]);
+    }
 
     #[test]
     fn credits_distinguish_unknown_from_zero_and_use_the_actual_balance() {

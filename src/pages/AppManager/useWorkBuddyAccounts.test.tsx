@@ -10,6 +10,7 @@ vi.mock('../../api/tauri', () => ({
   listWorkBuddyAccounts: vi.fn(),
   refreshWorkBuddyAccountQuota: vi.fn(),
   startWorkBuddyLogin: vi.fn(),
+  pollWorkBuddyLogin: vi.fn(),
   cancelWorkBuddyLogin: vi.fn().mockResolvedValue(undefined),
   openExternal: vi.fn(),
   deleteWorkBuddyAccount: vi.fn().mockResolvedValue(undefined),

@@ -314,17 +314,9 @@ pub async fn switch(id: &str) -> Result<Account, String> {
 async fn close_app() -> Result<(), String> {
     #[cfg(windows)]
     {
-        let script = "$ErrorActionPreference='Stop'; Get-Process -Name 'Grok Bot' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; $end=(Get-Date).AddSeconds(10); while(Get-Process -Name 'Grok Bot' -ErrorAction SilentlyContinue) { if((Get-Date) -ge $end){exit 1}; Start-Sleep -Milliseconds 100 }; exit 0";
-        let status = tokio::process::Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", script])
-            .creation_flags(0x08000000)
-            .status()
+        super::cursor_auth::close_windows_client("Grok Bot", true)
             .await
-            .map_err(|_| "accountError.failed")?;
-        if !status.success() {
-            return Err("accountError.failed".into());
-        }
-        Ok(())
+            .map_err(|_| "accountError.failed".into())
     }
     #[cfg(unix)]
     {
