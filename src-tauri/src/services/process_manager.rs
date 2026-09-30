@@ -692,34 +692,25 @@ impl ProcessManager {
         }
     }
 
-    /// Start a GUI tool by opening its executable
     /// Launch an MSIX/Store app via shell:AppsFolder URI (Windows only).
-    /// On non-Windows hosts there are no Store apps, so this is a no-op error.
+    #[cfg(windows)]
     fn start_shell_uri(&mut self, tool_id: &str, uri: &str) -> Result<(), String> {
-        #[cfg(windows)]
-        {
-            let result = crate::utils::process::command("explorer.exe")
-                .arg(uri)
-                .spawn();
-            match result {
-                Ok(child) => {
-                    let pid = child.id();
-                    log::info!(
-                        "[ProcessManager] Launched {} via shell URI, PID: {}",
-                        tool_id,
-                        pid
-                    );
-                    self.processes
-                        .insert(tool_id.to_string(), ProcessInfo::new(pid));
-                    Ok(())
-                }
-                Err(e) => Err(format!("Failed to launch via shell URI: {}", e)),
+        let result = crate::utils::process::command("explorer.exe")
+            .arg(uri)
+            .spawn();
+        match result {
+            Ok(child) => {
+                let pid = child.id();
+                log::info!(
+                    "[ProcessManager] Launched {} via shell URI, PID: {}",
+                    tool_id,
+                    pid
+                );
+                self.processes
+                    .insert(tool_id.to_string(), ProcessInfo::new(pid));
+                Ok(())
             }
-        }
-        #[cfg(not(windows))]
-        {
-            let _ = (tool_id, uri);
-            Err("Shell-URI launch is Windows-only".to_string())
+            Err(e) => Err(format!("Failed to launch via shell URI: {}", e)),
         }
     }
 
