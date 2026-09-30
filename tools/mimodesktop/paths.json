@@ -8,7 +8,7 @@
     "category": "Desktop",
     "apiProtocol": ["openai"],
     "docs": "https://mimo.mi.com/docs/zh-CN/updates/feature/desktop",
-    "website": "https://mimo.xiaomimimo.com/desktop/invite/",
+    "website": "https://mimo.xiaomimimo.com/desktop/",
     "description": "Xiaomi MiMo Desktop beta. Configure the default model for new tasks. Apply & Launch restarts the app; Modify Only requires a manual restart.",
     "command": "",
     "configDir": "~/.config/mimocode",

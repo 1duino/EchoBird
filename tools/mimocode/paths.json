@@ -5,6 +5,7 @@
         "openai"
     ],
     "docs": "https://mimo.xiaomi.com/mimocode/start",
+    "website": "https://mimo.xiaomi.com/mimocode",
     "command": "mimo",
     "startCommand": "mimo",
     "envVar": "MIMOCODE_PATH",

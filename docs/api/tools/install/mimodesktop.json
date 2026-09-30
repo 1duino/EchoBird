@@ -1,7 +1,7 @@
 {
     "id": "mimodesktop",
     "displayName": "MiMo Desktop (Beta)",
-    "homepage": "https://mimo.xiaomimimo.com/desktop/invite/",
+    "homepage": "https://mimo.xiaomimimo.com/desktop/",
     "docs": "https://mimo.mi.com/docs/zh-CN/updates/feature/desktop",
     "kind": "desktop_app",
     "platforms": ["windows", "macos", "linux"],
@@ -9,7 +9,7 @@
         "windows_download": "https://mimocode-cdn.xiaomimimo.com/mimocode/mimodesktop/XiaomiMiMo-latest-x64-setup.exe",
         "macos_download": "https://mimocode-cdn.xiaomimimo.com/mimocode/mimodesktop/XiaomiMiMo-latest-arm64.dmg",
         "linux_download": "https://mimocode-cdn.xiaomimimo.com/mimocode/mimodesktop/XiaomiMiMo-latest-x64.AppImage",
-        "note": "Beta desktop application. Windows download is x64; macOS download is Apple Silicon ARM64 only; Linux download is x64. Do not use the ARM DMG on an Intel Mac or assume an unavailable architecture has an installer. The supplied Linux URL returned HTTP 404 on 2026-09-10; check availability before each install and report an unavailable release instead of claiming success."
+        "note": "Beta desktop application. Windows download is x64; macOS download is Apple Silicon ARM64 only; Linux download is x64. Do not use the ARM DMG on an Intel Mac or assume an unavailable architecture has an installer. The homepage lists Windows and macOS downloads; the Linux AppImage on the official CDN was verified available on 2026-09-30. Check availability before each install and report an unavailable release instead of claiming success."
     },
     "install_flow": {
         "summary": "Detect OS and architecture -> check official download -> install -> verify the desktop executable",
@@ -20,7 +20,7 @@
             "Windows x64: run the NSIS installer with Start-Process -FilePath <installer> -ArgumentList '/S' -WindowStyle Hidden -Wait -PassThru for a per-user silent install. Inspect its exit code, then confirm the Xiaomi MiMo.exe path through the registry. If installation requires interactive setup or system approval, open the installer and explain the remaining step; do not report completion before the executable is verified.",
             "macOS ARM64: mount the DMG read-only with hdiutil attach -nobrowse, copy Xiaomi MiMo.app into ~/Applications with ditto, detach the mounted volume, then verify the app bundle. Use open to launch the copied app. Handle macOS first-launch approval through the normal system UI.",
             "Linux x64: only after a successful availability check, download the AppImage to ~/.local/bin/mimodesktop.AppImage, mark it executable and verify that it launches. Report missing runtime dependencies if launch fails.",
-            "Refresh EchoBird's tool detection. First launch may require beta access or Xiaomi sign-in; installation does not grant an invitation."
+            "Refresh EchoBird's tool detection. First launch may require Xiaomi sign-in; follow the current access requirements shown by the official website or client."
         ],
         "tell_user": [
             "The exact installer and installed application paths",
