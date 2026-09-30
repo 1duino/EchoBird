@@ -32,7 +32,7 @@
   --bg-surface-rgb: 232 230 224; /* #E8E6E0 — cards rest here */
   --bg-elevated-rgb: 216 213 205; /* #D8D5CD — hover, selected, dropdowns */
   --bg-deep-rgb: 232 230 224;
-  --bg-input-rgb: 255 255 255;
+  --bg-input-rgb: 229 227 220; /* #E5E3DC — theme-tinted input */
   --border-rgb: 220 218 211;
   --accent-rgb: 201 100 66; /* Claude coral, slightly deeper for AA contrast */
   --accent-secondary-rgb: 176 88 56;

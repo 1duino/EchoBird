@@ -1,5 +1,5 @@
 // Theme store — light / dark / system, persisted to AppSettings.themeMode.
-// undefined themeMode === follow system.
+// Missing settings file defaults to dark; an unset saved themeMode means follow system.
 import { create } from 'zustand';
 import * as api from '../api/tauri';
 import {
@@ -83,8 +83,8 @@ interface ThemeStore {
 }
 
 export const useThemeStore = create<ThemeStore>((set, get) => ({
-  mode: 'system',
-  resolved: resolve('system'),
+  mode: 'dark',
+  resolved: 'dark',
   colorTheme: 'oatgray',
   setMode: (mode) => {
     const resolved = resolve(mode);

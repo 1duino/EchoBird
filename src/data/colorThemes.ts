@@ -43,9 +43,9 @@ export const COLOR_THEMES: ColorTheme[] = [
     light: {
       shell: '#EFE9DF',
       canvas: '#EFEEEB',
-      secondary: '#F7F4ED',
+      secondary: '#E8E6E0',
       tertiary: '#D8D5CD',
-      input: '#FFFDF8',
+      input: '#E5E3DC',
     },
     dark: {
       shell: '#202120',
@@ -63,9 +63,9 @@ export const COLOR_THEMES: ColorTheme[] = [
     light: {
       shell: '#F2E3DA',
       canvas: '#FAF3EE',
-      secondary: '#FFF9F5',
+      secondary: '#F5E7DF',
       tertiary: '#E8C6B6',
-      input: '#FFFCF9',
+      input: '#F2E0D7',
     },
     dark: {
       shell: '#302321',
@@ -85,7 +85,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F3F9F7',
       secondary: '#E8F4F1',
       tertiary: '#B9DCD6',
-      input: '#FBFFFE',
+      input: '#DFEFEC',
     },
     dark: {
       shell: '#172D31',
@@ -105,7 +105,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F5F7ED',
       secondary: '#E8EEDB',
       tertiary: '#C7D3AE',
-      input: '#FCFEF5',
+      input: '#E1E9D2',
     },
     dark: {
       shell: '#202A24',
@@ -125,7 +125,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F7F5FB',
       secondary: '#ECE8F4',
       tertiary: '#CDC4E0',
-      input: '#FDFBFF',
+      input: '#E6E1F0',
     },
     dark: {
       shell: '#252238',
@@ -145,7 +145,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#FAF4F4',
       secondary: '#F2E6E8',
       tertiary: '#DDBDC3',
-      input: '#FFFDFD',
+      input: '#EEDEE1',
     },
     dark: {
       shell: '#312126',
@@ -165,7 +165,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F2F9FA',
       secondary: '#E3F1F3',
       tertiary: '#B6D8DE',
-      input: '#FBFFFF',
+      input: '#DAECEF',
     },
     dark: {
       shell: '#172A33',
@@ -185,7 +185,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F4F7FD',
       secondary: '#E7EDFA',
       tertiary: '#BFCDE8',
-      input: '#FCFDFF',
+      input: '#DFE7F6',
     },
     dark: {
       shell: '#18243A',
@@ -205,7 +205,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#FCF7E8',
       secondary: '#F6EDC9',
       tertiary: '#E7C96D',
-      input: '#FFFDF5',
+      input: '#F3E6B7',
     },
     dark: {
       shell: '#33291B',
@@ -225,7 +225,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F1FAF5',
       secondary: '#E3F2EA',
       tertiary: '#A9D2BE',
-      input: '#FBFFFC',
+      input: '#D7ECE1',
     },
     dark: {
       shell: '#172B27',
@@ -245,7 +245,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F4F5FC',
       secondary: '#E9EAF8',
       tertiary: '#B9BCE0',
-      input: '#FCFCFF',
+      input: '#DFE1F3',
     },
     dark: {
       shell: '#1C2038',
@@ -265,7 +265,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#FCF3ED',
       secondary: '#F4E4D9',
       tertiary: '#E2AD91',
-      input: '#FFFDFB',
+      input: '#F0D9CB',
     },
     dark: {
       shell: '#35211D',
@@ -285,7 +285,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F8F4FD',
       secondary: '#EEE7F8',
       tertiary: '#CDB8E2',
-      input: '#FEFCFF',
+      input: '#E7DEF4',
     },
     dark: {
       shell: '#292239',
@@ -305,7 +305,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F4F7EE',
       secondary: '#E9EFDF',
       tertiary: '#C0D0AE',
-      input: '#FCFEF8',
+      input: '#E1E9D5',
     },
     dark: {
       shell: '#242B24',
@@ -325,7 +325,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F5F4F0',
       secondary: '#EAE9E4',
       tertiary: '#C7C5BD',
-      input: '#FCFBF8',
+      input: '#E3E2DC',
     },
     dark: {
       shell: '#202124',
@@ -345,7 +345,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#FCF4F7',
       secondary: '#F5E7EC',
       tertiary: '#E1B8C5',
-      input: '#FFFDFE',
+      input: '#F1DEE4',
     },
     dark: {
       shell: '#33222A',
@@ -365,7 +365,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F0F8F3',
       secondary: '#E2F0E8',
       tertiary: '#A8CDBB',
-      input: '#FBFFFD',
+      input: '#D6E9DF',
     },
     dark: {
       shell: '#1B2C2B',
@@ -385,7 +385,7 @@ export const COLOR_THEMES: ColorTheme[] = [
       canvas: '#F3F7FB',
       secondary: '#E4EDF5',
       tertiary: '#B6C9DB',
-      input: '#FCFEFF',
+      input: '#DBE6F0',
     },
     dark: {
       shell: '#162337',
