@@ -4,6 +4,7 @@
 mod aider;
 mod claudecode;
 mod claudedesktop;
+pub(crate) mod cline;
 mod codex;
 pub(crate) mod dsh;
 mod generic;
@@ -280,6 +281,9 @@ pub async fn apply_model_to_tool(tool_id: &str, model_info: ModelInfo) -> ApplyR
         "mimocode" => return apply_mimocode(&model_info),
         "mimodesktop" => return mimodesktop::apply(&model_info),
         "minimaxcode" | "minimaxdesktop" => return minimaxcode::apply(&model_info),
+        "cline" | "clinedesktop" => {
+            return cline::apply(&model_info, tool_id == "clinedesktop").await
+        }
         "kimidesktop" => return apply_kimidesktop(&model_info),
 
         // Kilo Code (Kilo fork of OpenCode): same provider schema,
@@ -351,6 +355,13 @@ pub async fn apply_model_to_tool(tool_id: &str, model_info: ModelInfo) -> ApplyR
 /// the tool itself regenerates a fresh, vendor-default config on next launch.
 /// Used by the App Desktop "restore to official" flow.
 pub async fn restore_tool_to_official(tool_id: &str) -> ApplyResult {
+    if matches!(tool_id, "cline" | "clinedesktop") {
+        return ApplyResult {
+            success: false,
+            message: "Select a built-in provider in Cline to restore its native configuration."
+                .into(),
+        };
+    }
     let config_path = match tool_manager::get_tool_config_mapping(tool_id) {
         Some((_, path)) => path,
         None => {
@@ -461,6 +472,7 @@ pub async fn get_tool_model_info(tool_id: &str) -> Option<ModelInfo> {
         "mimocode" => return read_mimocode(),
         "mimodesktop" => return mimodesktop::read(),
         "minimaxcode" | "minimaxdesktop" => return minimaxcode::read(),
+        "cline" | "clinedesktop" => return cline::read(tool_id == "clinedesktop"),
         "kimidesktop" => return read_kimidesktop(),
         "kilo" => return read_kilo(),
         "openscience" => return read_openscience(),

@@ -1,4 +1,5 @@
 import { CursorAccountSection } from './CursorAccountSection';
+import { AntigravityAccountSection } from './AntigravityAccountSection';
 import { AccountSectionButton, AccountSectionRow } from './AccountSectionPrimitives';
 import { DeepSeekAccountSection } from './DeepSeekAccountSection';
 import { GrokAccountSection } from './GrokAccountSection';
@@ -938,6 +939,8 @@ export const AppManagerPanel: React.FC = () => {
             )
           ) : selectedTool === 'manus' ? (
             <ManusAccountSection />
+          ) : selectedTool === 'antigravity' || selectedTool === 'antigravitydesktop' ? (
+            <AntigravityAccountSection />
           ) : selectedTool === 'grokbot' || selectedTool === 'cursor' ? (
             <CursorAccountSection tool={selectedTool} />
           ) : selectedToolData.noModelConfig ? (
@@ -1025,6 +1028,7 @@ export const AppManagerBottom: React.FC = () => {
     manusAccounts,
     grokBotAccounts,
     cursorAccounts,
+    antigravityAccounts,
     launchAfterApply,
     setLaunchAfterApply,
     isLaunching,
@@ -1051,6 +1055,8 @@ export const AppManagerBottom: React.FC = () => {
     (selectedTool === 'manus' && !!manusAccounts.selectedId) ||
     (selectedTool === 'grokbot' && !!grokBotAccounts.selectedId) ||
     (selectedTool === 'cursor' && !!cursorAccounts.selectedId) ||
+    ((selectedTool === 'antigravity' || selectedTool === 'antigravitydesktop') &&
+      !!antigravityAccounts.selectedId) ||
     ((selectedTool === 'workbuddy' || selectedTool === 'workbuddyai') &&
       !!workBuddyAccounts.selectedId);
   // What will a click actually do?

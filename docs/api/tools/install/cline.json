@@ -1,0 +1,24 @@
+{
+  "id": "cline",
+  "displayName": "Cline CLI",
+  "homepage": "https://cline.bot/cli",
+  "docs": "https://docs.cline.bot/cline-cli/overview",
+  "github": "https://github.com/cline/cline",
+  "platforms": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "install": {
+    "npm": "npm install -g cline",
+    "note": "Use the official public npm package cline. It selects a native binary for Windows, macOS or Linux, x64 or ARM64. npm is needed for installation; the binary bundles its runtime. Installing the CLI does not install the Cline desktop application or an IDE extension."
+  },
+  "first_run": {
+    "verify": "cline --version",
+    "config_global": "~/.cline/data/settings/providers.json",
+    "note": "Use cline auth for native account login if requested. EchoBird handles API model configuration. Desktop and CLI share native provider settings; applying a model in EchoBird synchronizes their defaults. Existing sessions retain their own model. Open Desktop once before switching it; explicit apply closes a running Desktop to update its stored selection. CLINE_PROVIDER_SETTINGS_PATH overrides the provider file, followed by CLINE_DATA_DIR, then CLINE_DIR/data, then ~/.cline/data. Preserve unrelated providers and credentials."
+  },
+  "identity_guard": {
+    "description": "Cline CLI is the terminal client (command cline). Cline Desktop is a separate native application (cline-app), not installed by npm install -g cline. Ask Desktop or CLI only when the requested edition is ambiguous."
+  }
+}

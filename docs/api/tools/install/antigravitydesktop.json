@@ -1,0 +1,21 @@
+{
+  "id": "antigravitydesktop",
+  "displayName": "Antigravity",
+  "homepage": "https://antigravity.google/download",
+  "docs": "https://antigravity.google/docs/getting-started",
+  "kind": "desktop_app",
+  "platforms": ["windows", "macos", "linux"],
+  "install": {
+    "download": "Choose Antigravity 2.0 on the official download page and select the installer matching the OS and architecture. Antigravity IDE is a separate product."
+  },
+  "install_flow": {
+    "agent_steps": [
+      "Detect the OS and architecture, then check for an installed Antigravity 2.0 executable or package registration.",
+      "Download the matching Antigravity 2.0 installer from https://antigravity.google/download. Do not substitute Antigravity IDE or the agy CLI.",
+      "Open the native installer for the user and verify the Antigravity 2.0 executable after completion. Sign in inside the native app."
+    ]
+  },
+  "identity_guard": {
+    "description": "Antigravity 2.0 is Google's standalone agent desktop app. It has its own installation and data directory; do not identify the separate Antigravity IDE or Gemini Desktop as this app. EchoBird manages Google accounts, not Gemini API settings."
+  }
+}

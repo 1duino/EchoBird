@@ -42,6 +42,22 @@ static BUNDLED: BundledAssets = BundledAssets {
     install_index_json: include_str!("../../docs/api/tools/install/index.json"),
     install_refs: &[
         (
+            "cline",
+            include_str!("../../docs/api/tools/install/cline.json"),
+        ),
+        (
+            "clinedesktop",
+            include_str!("../../docs/api/tools/install/clinedesktop.json"),
+        ),
+        (
+            "antigravity",
+            include_str!("../../docs/api/tools/install/antigravity.json"),
+        ),
+        (
+            "antigravitydesktop",
+            include_str!("../../docs/api/tools/install/antigravitydesktop.json"),
+        ),
+        (
             "minimaxcode",
             include_str!("../../docs/api/tools/install/minimaxcode.json"),
         ),
@@ -993,6 +1009,13 @@ pub fn run() {
             mod_stub::app_ready,
             mod_stub::read_log_tail,
             tool_commands::scan_tools,
+            tool_commands::list_antigravity_accounts,
+            tool_commands::start_antigravity_login,
+            tool_commands::poll_antigravity_login,
+            tool_commands::cancel_antigravity_login,
+            tool_commands::switch_antigravity_account,
+            tool_commands::delete_antigravity_account,
+            tool_commands::refresh_antigravity_account,
             tool_commands::apply_model_to_tool,
             tool_commands::restore_tool_to_official,
             tool_commands::list_claude_code_accounts,

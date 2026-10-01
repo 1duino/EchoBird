@@ -1,6 +1,6 @@
 [package]
 name = "echobird"
-version = "5.8.3"
+version = "5.8.4"
 description = "The Nexus for Models, Agents & Vibe Coding"
 authors = ["Echobird Team"]
 license = "MIT"
@@ -116,6 +116,8 @@ libc = "0.2"
 zbus = "5.16"
 
 [target.'cfg(windows)'.dependencies]
+# Cline Desktop stores its model selection in WebView2's native Local Storage.
+rusty-leveldb = "4.0.1"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_System_Com", "Win32_UI_Shell", "Win32_Security_Cryptography", "ApplicationModel_Core", "Management_Deployment"] }
 raw-window-handle = "0.6"
 # Registry scan for tool detection — read DisplayName/InstallLocation/DisplayIcon

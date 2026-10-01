@@ -1,0 +1,35 @@
+{
+  "id": "clinedesktop",
+  "displayName": "Cline Desktop",
+  "homepage": "https://cline.bot/desktop",
+  "docs": "https://cline.bot/desktop",
+  "github": "https://github.com/cline/cline",
+  "kind": "desktop_app",
+  "platforms": [
+    "windows",
+    "macos",
+    "linux"
+  ],
+  "install": {
+    "release_feed": "https://github.com/cline/cline/releases/download/desktop-latest/latest.json",
+    "release_api": "https://api.github.com/repos/cline/cline/releases/tags/desktop-v<version>",
+    "windows_download": "Read version from release_feed, resolve the matching desktop-v<version> release assets, and download Cline_<version>_x64-setup.exe. The desktop currently publishes Windows x64, not a native Windows ARM64 installer.",
+    "macos_download": "Read version from release_feed, resolve the matching desktop-v<version> release assets, and download Cline_<version>_universal.dmg for Intel or Apple Silicon.",
+    "linux_download": "Read version from release_feed, resolve the matching desktop-v<version> release assets. For Debian/Ubuntu choose amd64.deb or arm64.deb; for Fedora/RHEL choose x86_64.rpm or aarch64.rpm. Install with apt install ./<file>.deb or dnf install ./<file>.rpm so WebKitGTK 4.1, GTK and other dependencies resolve. Do not select the .sig files or macOS updater archive.",
+    "note": "Desktop is currently beta. The landing page may advertise only macOS/Windows even when the official release includes Linux deb/rpm. Verify the actual desktop release assets and architecture. Do not use the repository's latest release API without a desktop tag: CLI and desktop have different release streams."
+  },
+  "install_flow": {
+    "agent_steps": [
+      "Detect OS and architecture, then check whether Cline Desktop is already installed using the native executable or installer registration.",
+      "Read the version from the official desktop-latest latest.json feed, then resolve the desktop-v<version> release and its installer assets. The desktop-latest tag itself contains only updater metadata. If the feed is unavailable, use the desktop release linked from https://cline.bot/desktop; never substitute a CLI or extension release.",
+      "Download the matching official installer to Downloads and report its exact path.",
+      "Windows/macOS: open the installer for the user to complete the native installation. Do not automate the GUI wizard. Linux: follow the package-manager installation and report any unmet runtime dependencies.",
+      "Verify the installed desktop executable separately from the CLI. Windows: %LOCALAPPDATA%\\Cline\\cline-app.exe or the registered custom installation directory. macOS: Cline.app. Linux: /usr/bin/cline-app.",
+      "Use Cline's native login only if requested. Preserve existing provider settings, application preferences and sessions."
+    ]
+  },
+  "identity_guard": {
+    "description": "Cline Desktop is the official native Tauri application, executable cline-app with bundled code-sidecar. npm install -g cline installs only the standalone CLI. Do not install VS Code or a Cline extension in response to a desktop request."
+  },
+  "model_configuration": "Desktop and CLI share providers.json. EchoBird switches their default local API models together through the native OpenAI-compatible or Anthropic provider and synchronizes Desktop's local model selection. Desktop cloud execution has a separate model selection. Existing sessions retain their own model. Open Desktop once after installation. Applying closes a running Desktop to release its model storage, and the existing launch checkbox controls relaunch. No Cline account login or quota management is provided by EchoBird."
+}

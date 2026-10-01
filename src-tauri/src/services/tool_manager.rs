@@ -1598,7 +1598,7 @@ pub(crate) fn model_config_paths() -> Vec<PathBuf> {
         .into_iter()
         .flat_map(|def| {
             [
-                expand_path(&def.config_mapping.config_file),
+                model_config_path(&def),
                 platform::echobird_dir().join(format!("{}.json", def.id)),
             ]
         })
@@ -1606,11 +1606,19 @@ pub(crate) fn model_config_paths() -> Vec<PathBuf> {
         .collect()
 }
 
+fn model_config_path(def: &ToolDefinition) -> PathBuf {
+    if matches!(def.id.as_str(), "cline" | "clinedesktop") {
+        super::tool_config_manager::cline::config_path()
+    } else {
+        expand_path(&def.config_mapping.config_file)
+    }
+}
+
 /// Get the config mapping for a specific tool
 pub fn get_tool_config_mapping(tool_id: &str) -> Option<(ToolDefinition, PathBuf)> {
     let defs = get_definitions();
     defs.into_iter().find(|d| d.id == tool_id).map(|def| {
-        let config_path = expand_path(&def.config_mapping.config_file);
+        let config_path = model_config_path(&def);
         (def, config_path)
     })
 }
@@ -1856,7 +1864,7 @@ async fn scan_single_tool(def: ToolDefinition) -> DetectedTool {
     };
 
     let config_path = if installed && !def.config_mapping.config_file.is_empty() {
-        let cp = expand_path(&def.config_mapping.config_file);
+        let cp = model_config_path(&def);
         Some(normalize_for_display(cp.to_string_lossy().to_string()))
     } else {
         None
@@ -2520,6 +2528,19 @@ mod tests {
         assert!(super::is_windows_exe(&path));
         assert!(path.to_lowercase().ends_with(r"\kimi code.exe"), "{path}");
         println!("Detected Kimi Desktop: {path}");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "machine-specific: requires Cline Desktop to be installed"]
+    fn real_registry_finds_cline_desktop() {
+        let definition: PathsConfig =
+            serde_json::from_str(include_str!("../../../tools/clinedesktop/paths.json")).unwrap();
+        let path = super::scan_windows_registry(&definition.install_hints.unwrap())
+            .expect("Cline Desktop registry entry should resolve to its executable");
+        assert!(super::is_windows_exe(&path));
+        assert!(path.to_lowercase().ends_with(r"\cline-app.exe"), "{path}");
+        println!("Detected Cline Desktop: {path}");
     }
 
     #[cfg(windows)]

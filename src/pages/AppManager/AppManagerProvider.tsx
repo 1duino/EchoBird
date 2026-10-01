@@ -1,4 +1,5 @@
 import { useCursorAccounts } from './useCursorAccounts';
+import { useAntigravityAccounts } from './useAntigravityAccounts';
 import { useDeepSeekAccounts } from './useDeepSeekAccounts';
 import { useGrokAccounts } from './useGrokAccounts';
 import { accountError } from '../../utils/accountError';
@@ -327,6 +328,11 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     clearCursorModel,
     setApplyError
   );
+  const antigravityAccounts = useAntigravityAccounts(
+    accountsEnabled && (selectedTool === 'antigravity' || selectedTool === 'antigravitydesktop'),
+    selectedTool === 'antigravity' ? 'antigravity' : 'antigravitydesktop',
+    setApplyError
+  );
 
   // Set tool model (single selection) - UI state update
   const handleSelectModel = (toolId: string, modelId: string) => {
@@ -418,19 +424,20 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
       });
 
       if (result?.success) {
-        const sharedMiniMax = ['minimaxcode', 'minimaxdesktop'];
+        const sharedTools = ['cline', 'clinedesktop'].includes(toolId)
+          ? ['cline', 'clinedesktop']
+          : ['minimaxcode', 'minimaxdesktop'];
         setDetectedTools((prev) =>
           prev.map((t) =>
-            t.id === toolId || (sharedMiniMax.includes(toolId) && sharedMiniMax.includes(t.id))
+            t.id === toolId || (sharedTools.includes(toolId) && sharedTools.includes(t.id))
               ? { ...t, activeModel: model.modelId || model.internalId }
               : t
           )
         );
-        if (sharedMiniMax.includes(toolId)) {
+        if (sharedTools.includes(toolId)) {
           setToolModelConfig((prev) => ({
             ...prev,
-            minimaxcode: model.internalId,
-            minimaxdesktop: model.internalId,
+            ...Object.fromEntries(sharedTools.map((id) => [id, model.internalId])),
           }));
         }
         return true;
@@ -573,7 +580,11 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
       !(selectedTool === 'grok' && grokAccounts.selectedId) &&
       !(selectedTool === 'manus' && manusAccounts.selectedId) &&
       !(selectedTool === 'cursor' && cursorAccounts.selectedId) &&
-      !(selectedTool === 'grokbot' && grokBotAccounts.selectedId)
+      !(selectedTool === 'grokbot' && grokBotAccounts.selectedId) &&
+      !(
+        (selectedTool === 'antigravity' || selectedTool === 'antigravitydesktop') &&
+        antigravityAccounts.selectedId
+      )
     )
       setTimeout(() => setIsLaunching(false), 3000); // 3 second cooldown
 
@@ -584,7 +595,20 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
     // An OpenAI account and a third-party API model are one exclusive choice.
     // Selecting an account restores the official provider before writing that
     // account's auth snapshot; selecting a model clears the account choice.
-    if (isCodexTool && selectedCodexAccountId) {
+    if (
+      (selectedTool === 'antigravity' || selectedTool === 'antigravitydesktop') &&
+      antigravityAccounts.selectedId
+    ) {
+      try {
+        await api.switchAntigravityAccount(antigravityAccounts.selectedId);
+        await antigravityAccounts.reload();
+      } catch (error) {
+        setApplyError(accountError(error, t));
+        setIsLaunching(false);
+        return;
+      }
+      setTimeout(() => setIsLaunching(false), 3000);
+    } else if (isCodexTool && selectedCodexAccountId) {
       const restoreResult = await applyRestore(selectedTool);
       if (restoreResult !== true) {
         setApplyError(
@@ -801,6 +825,7 @@ export const AppManagerProvider: React.FC<AppManagerProviderProps> = ({ children
         manusAccounts,
         grokBotAccounts,
         cursorAccounts,
+        antigravityAccounts,
         codexAccounts,
         selectedCodexAccountId,
         setSelectedCodexAccountId: selectCodexAccount,

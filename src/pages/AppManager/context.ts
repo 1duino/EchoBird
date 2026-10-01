@@ -1,4 +1,5 @@
 import type { useCursorAccounts } from './useCursorAccounts';
+import type { useAntigravityAccounts } from './useAntigravityAccounts';
 import type { useDeepSeekAccounts } from './useDeepSeekAccounts';
 import type { useGrokAccounts } from './useGrokAccounts';
 import type { useWorkBuddyAccounts } from './useWorkBuddyAccounts';
@@ -30,6 +31,7 @@ export interface AppManagerContextType {
   manusAccounts: ReturnType<typeof useGrokAccounts>;
   grokBotAccounts: ReturnType<typeof useCursorAccounts>;
   cursorAccounts: ReturnType<typeof useCursorAccounts>;
+  antigravityAccounts: ReturnType<typeof useAntigravityAccounts>;
   codexAccounts: CodexAccount[];
   selectedCodexAccountId: string | null;
   setSelectedCodexAccountId: (id: string | null) => void;

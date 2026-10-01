@@ -1,0 +1,22 @@
+{
+  "id": "antigravity",
+  "displayName": "Antigravity CLI",
+  "homepage": "https://antigravity.google/download",
+  "docs": "https://antigravity.google/docs/cli/install",
+  "kind": "cli",
+  "platforms": ["windows", "macos", "linux"],
+  "install": {
+    "windows": "Use the official PowerShell or CMD installer linked at https://antigravity.google/download. The native command is agy and the default executable is %LOCALAPPDATA%\\agy\\bin\\agy.exe.",
+    "macos_linux": "Use the official install.sh linked at https://antigravity.google/download. The default executable is ~/.local/bin/agy."
+  },
+  "install_flow": {
+    "agent_steps": [
+      "Detect the OS and architecture, then check for the official agy executable.",
+      "Use only the matching Antigravity CLI installer from the official download page; Antigravity 2.0 and Antigravity IDE are separate downloads.",
+      "After installation verify agy --version and the executable path. The user signs into a Google account in the native CLI."
+    ]
+  },
+  "identity_guard": {
+    "description": "Antigravity CLI is the official terminal client named agy. It is separate from Antigravity 2.0 Desktop and Antigravity IDE. EchoBird manages Google account selection; it does not configure Gemini API keys."
+  }
+}

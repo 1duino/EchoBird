@@ -78,6 +78,13 @@ vi.mock('../../api/tauri', () => {
     'refreshGrokBotAccount',
     'deleteGrokBotAccount',
     'deleteCursorAccount',
+    'listAntigravityAccounts',
+    'startAntigravityLogin',
+    'cancelAntigravityLogin',
+    'pollAntigravityLogin',
+    'refreshAntigravityAccount',
+    'switchAntigravityAccount',
+    'deleteAntigravityAccount',
     'startTool',
     'openExternal',
     'restoreToolToOfficial',
@@ -107,6 +114,7 @@ const listNames = [
   'listManusAccounts',
   'listCursorAccounts',
   'listGrokBotAccounts',
+  'listAntigravityAccounts',
 ] as const;
 const listFor = {
   codex: 'listCodexAccounts',

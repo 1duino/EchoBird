@@ -2,6 +2,7 @@ pub mod agent_loop;
 pub mod agent_tools;
 pub mod ai_career;
 pub mod anthropic_proxy;
+pub mod antigravity_accounts;
 pub mod auto_fix;
 pub mod bundled_assets;
 pub mod claude_code_accounts;

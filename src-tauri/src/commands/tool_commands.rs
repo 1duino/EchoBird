@@ -1,9 +1,49 @@
 // Tauri Commands for tool operations — exposed to frontend via invoke()
 
 use crate::models::tool::DetectedTool;
+use crate::services::antigravity_accounts::{
+    self, Account as AntigravityAccount, LoginStart as AntigravityLogin,
+};
 use crate::services::codex_accounts::{self, CodexAccountSummary};
 use crate::services::tool_config_manager::{self, ApplyResult, ModelInfo};
 use crate::services::tool_manager;
+
+#[tauri::command]
+pub async fn list_antigravity_accounts() -> Result<Vec<AntigravityAccount>, String> {
+    antigravity_accounts::list().await
+}
+
+#[tauri::command]
+pub async fn start_antigravity_login() -> Result<AntigravityLogin, String> {
+    antigravity_accounts::start_login().await
+}
+
+#[tauri::command]
+pub async fn poll_antigravity_login(
+    login_id: String,
+) -> Result<Option<AntigravityAccount>, String> {
+    antigravity_accounts::poll_login(&login_id).await
+}
+
+#[tauri::command]
+pub fn cancel_antigravity_login(login_id: String) -> Result<(), String> {
+    antigravity_accounts::cancel_login(&login_id)
+}
+
+#[tauri::command]
+pub async fn switch_antigravity_account(account_id: String) -> Result<AntigravityAccount, String> {
+    antigravity_accounts::switch(&account_id).await
+}
+
+#[tauri::command]
+pub async fn delete_antigravity_account(account_id: String) -> Result<(), String> {
+    antigravity_accounts::delete(&account_id).await
+}
+
+#[tauri::command]
+pub async fn refresh_antigravity_account(account_id: String) -> Result<AntigravityAccount, String> {
+    antigravity_accounts::refresh(&account_id).await
+}
 
 use crate::services::grok_bot_accounts::{
     self, Account as GrokBotAccount, LoginStart as GrokBotLogin,

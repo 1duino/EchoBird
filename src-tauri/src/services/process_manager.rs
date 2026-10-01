@@ -1233,6 +1233,18 @@ pub async fn start_tool(
     mgr.start_tool(tool_id, start_command, cwd).await
 }
 
+/// Release native desktop storage before an explicit model change. Uses the same
+/// process scope as launch/restart; it never targets standalone CLI instances.
+pub(crate) async fn stop_desktop_for_config(tool_id: &str) {
+    if !crate::services::tool_manager::is_managed_desktop_tool(tool_id) {
+        return;
+    }
+    let mgr = get_manager().await;
+    if mgr.lock().await.kill_desktop_instances(tool_id) {
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::is_third_party_codex_base_url;

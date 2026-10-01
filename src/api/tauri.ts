@@ -465,6 +465,48 @@ export function refreshGrokBotAccount(accountId: string): Promise<CursorUsage> {
   return invoke('refresh_grok_bot_account', { accountId });
 }
 
+export interface AntigravityQuota {
+  name: string;
+  remainingPercent: number;
+  resetAt: number | null;
+}
+
+export interface AntigravityAccount {
+  id: string;
+  email: string;
+  active: boolean;
+  plan: string | null;
+  quotas: AntigravityQuota[];
+}
+
+export interface AntigravityLogin {
+  loginId: string;
+  verificationUri: string;
+  expiresAt: number;
+}
+
+export function listAntigravityAccounts(): Promise<AntigravityAccount[]> {
+  return invoke('list_antigravity_accounts');
+}
+export function startAntigravityLogin(): Promise<AntigravityLogin> {
+  return invoke('start_antigravity_login');
+}
+export function pollAntigravityLogin(loginId: string): Promise<AntigravityAccount | null> {
+  return invoke('poll_antigravity_login', { loginId });
+}
+export function cancelAntigravityLogin(loginId: string): Promise<void> {
+  return invoke('cancel_antigravity_login', { loginId });
+}
+export function switchAntigravityAccount(accountId: string): Promise<AntigravityAccount> {
+  return invoke('switch_antigravity_account', { accountId });
+}
+export function deleteAntigravityAccount(accountId: string): Promise<void> {
+  return invoke('delete_antigravity_account', { accountId });
+}
+export function refreshAntigravityAccount(accountId: string): Promise<AntigravityAccount> {
+  return invoke('refresh_antigravity_account', { accountId });
+}
+
 export interface CursorAccount {
   id: string;
   email: string;
