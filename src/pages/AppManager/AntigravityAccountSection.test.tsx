@@ -3,9 +3,14 @@ import { act, create } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 import { AntigravityAccountSection } from './AntigravityAccountSection';
 import { AppManagerContext, type AppManagerContextType } from './context';
+import { QuotaCountdown } from './QuotaCountdown';
 
 describe.each(['antigravity', 'antigravitydesktop'] as const)('%s account controls', (tool) => {
-  const fixture = (refreshing = false) => {
+  const fixture = (
+    refreshing = false,
+    resetAt: number | null = null,
+    claudeResetAt: number | null = resetAt
+  ) => {
     const select = vi.fn();
     const refresh = vi.fn();
     const remove = vi.fn();
@@ -15,9 +20,9 @@ describe.each(['antigravity', 'antigravitydesktop'] as const)('%s account contro
       active: true,
       plan: 'Ultra',
       quotas: [
-        { name: 'gemini-3', remainingPercent: 0, resetAt: null },
-        { name: 'gemini-3-fast', remainingPercent: 40, resetAt: null },
-        { name: 'claude-sonnet', remainingPercent: 75, resetAt: null },
+        { name: 'gemini-3', remainingPercent: 0, resetAt },
+        { name: 'gemini-3-fast', remainingPercent: 40, resetAt: resetAt && resetAt + 3600 },
+        { name: 'claude-sonnet', remainingPercent: 75, resetAt: claudeResetAt },
       ],
     };
     const context = {
@@ -72,6 +77,35 @@ describe.each(['antigravity', 'antigravitydesktop'] as const)('%s account contro
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(select).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+  });
+
+  it('uses each model family’s limiting quota reset time without assuming a plan window', () => {
+    const resetAt = 1_800_000_000;
+    const renderer = create(fixture(false, resetAt, resetAt + 7200).element);
+    const countdowns = renderer.root.findAllByType(QuotaCountdown);
+    expect(countdowns.map((countdown) => countdown.props.resetAt)).toEqual([
+      resetAt,
+      resetAt + 7200,
+    ]);
+    expect(countdowns.every((countdown) => countdown.props.compact && countdown.props.small)).toBe(
+      true
+    );
+    const quotaLabels = renderer.root
+      .findAllByType('span')
+      .map((span) => span.children.filter((child) => typeof child === 'string').join(''));
+    expect(quotaLabels).toContain('G 0% ');
+    expect(quotaLabels).toContain('C 75% ');
+    act(() => renderer.unmount());
+  });
+
+  it('shows one countdown when Gemini and Claude share a reset time', () => {
+    const resetAt = 1_800_000_000;
+    const renderer = create(fixture(false, resetAt).element);
+    expect(renderer.root.findAllByType(QuotaCountdown).map((timer) => timer.props.resetAt)).toEqual(
+      [resetAt]
+    );
+    expect(renderer.root.findByType(QuotaCountdown).props.compact).toBe(true);
     act(() => renderer.unmount());
   });
 });
