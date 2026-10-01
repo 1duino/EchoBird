@@ -1,6 +1,7 @@
 #[cfg(target_os = "linux")]
 use std::io::Write;
 
+#[cfg(windows)]
 const TARGET: &str = "gemini:antigravity";
 
 #[cfg(windows)]
