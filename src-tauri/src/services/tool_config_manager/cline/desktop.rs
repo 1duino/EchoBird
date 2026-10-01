@@ -319,11 +319,13 @@ mod tests {
         fs::write(&path, original.to_string()).unwrap();
         assert!(super::super::apply_at(&path, settings.clone(), Some(&mut storage)).is_err());
         assert_eq!(super::super::load(&path).unwrap(), original);
+        #[cfg(windows)]
         let db = match &storage {
             Storage::Sqlite(db) => db,
-            #[cfg(windows)]
             Storage::Level(_) => panic!("expected SQLite"),
         };
+        #[cfg(not(windows))]
+        let Storage::Sqlite(db) = &storage;
         db.execute_batch("DROP TRIGGER reject_change;").unwrap();
         super::super::apply_at(&path, settings, Some(&mut storage)).unwrap();
         let state = super::super::load(&path).unwrap();
