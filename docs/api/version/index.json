@@ -1,11 +1,11 @@
 {
   "version": "5.8.4",
   "releaseDate": "2026-10-01",
-  "releaseNotes": "- 新增 Cline CLI 与 Cline Desktop：统一工具检测、一键安装入口和本地 API 模型切换；桌面端使用官方安装包。\n- 新增 Antigravity CLI 与 Antigravity：统一工具检测和一键安装入口；支持 Google 账号添加、切换与手动刷新套餐和模型额度。\n- 修正 Cline Desktop 官方安装包的版本索引解析，并使用对应客户端的原生图标。",
+  "releaseNotes": "- 国内版 WorkBuddy 账号支持一键领取每日奖励，账号列表显示领取状态。\n- WorkBuddy 账号列表分别显示基础积分、加量包和平台奖励余额，并更新国内版套餐等级。\n- ChatGPT 账号列表更新套餐名称、订阅倒计时及多周期额度显示。",
   "releaseNotesI18n": {
-    "zh-cn": "- 新增 Cline CLI 与 Cline Desktop：统一工具检测、一键安装入口和本地 API 模型切换；桌面端使用官方安装包。\n- 新增 Antigravity CLI 与 Antigravity：统一工具检测和一键安装入口；支持 Google 账号添加、切换与手动刷新套餐和模型额度。\n- 修正 Cline Desktop 官方安装包的版本索引解析，并使用对应客户端的原生图标。",
-    "en": "- Add Cline CLI and Cline Desktop with unified detection, install entry points, and local API model switching; Desktop uses the official installer.\n- Add Antigravity CLI and Antigravity with unified detection and install entry points, plus Google account addition, switching, and manual plan and model quota refresh.\n- Resolve Cline Desktop installers through the correct official version feed and use each client's native icon.",
-    "zh-tw": "- 新增 Cline CLI 與 Cline Desktop：統一工具偵測、一鍵安裝入口和本機 API 模型切換；桌面端使用官方安裝程式。\n- 新增 Antigravity CLI 與 Antigravity：統一工具偵測和一鍵安裝入口；支援 Google 帳號新增、切換，以及手動重新整理方案和模型額度。\n- 修正 Cline Desktop 官方安裝程式的版本索引解析，並使用對應客戶端的原生圖示。",
-    "ja": "- Cline CLI と Cline Desktop に共通の検出、インストール入口、ローカル API モデル切り替えを追加。Desktop は公式インストーラーを使用します。\n- Antigravity CLI と Antigravity に共通の検出とインストール入口を追加。Google アカウントの追加・切り替え、プランとモデルの利用枠の手動更新に対応しました。\n- Cline Desktop の公式インストーラーを正しいバージョンフィードから取得し、各クライアントの元のアイコンを使用します。"
+    "zh-cn": "- 国内版 WorkBuddy 账号支持一键领取每日奖励，账号列表显示领取状态。\n- WorkBuddy 账号列表分别显示基础积分、加量包和平台奖励余额，并更新国内版套餐等级。\n- ChatGPT 账号列表更新套餐名称、订阅倒计时及多周期额度显示。",
+    "en": "- Claim daily rewards with one click for WorkBuddy China accounts and see the claim status in the account list.\n- Show base credits, add-on credits, and platform reward balances separately for WorkBuddy, with updated China plan names.\n- Update ChatGPT account plan names, subscription countdowns, and multi-window quota display.",
+    "zh-tw": "- 中國版 WorkBuddy 帳號支援一鍵領取每日獎勵，帳號列表顯示領取狀態。\n- WorkBuddy 帳號列表分別顯示基礎積分、加量包和平台獎勵餘額，並更新中國版方案等級。\n- ChatGPT 帳號列表更新方案名稱、訂閱倒數計時及多週期額度顯示。",
+    "ja": "- 中国版 WorkBuddy アカウントで毎日の特典をワンクリックで受け取り、アカウント一覧で受け取り状態を確認できます。\n- WorkBuddy の基本クレジット、追加パック、プラットフォーム特典の残高を個別に表示し、中国版プラン名を更新しました。\n- ChatGPT のプラン名、サブスクリプションの残り時間、複数期間の利用枠表示を更新しました。"
   }
 }
