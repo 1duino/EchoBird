@@ -1,5 +1,5 @@
 {
-  "version": "5.8.5",
+  "version": "5.8.6",
   "releaseDate": "2026-10-02",
   "releaseNotes": "本次修复：\n- 修复 Antigravity 账号行显示不下的问题：紧凑显示 Gemini 和 Claude 的额度与重置倒计时，相同时间只显示一次。\n\n同时包含上一版功能：\n- 国内版 WorkBuddy 账号支持一键领取每日奖励，账号列表显示领取状态。\n- WorkBuddy 账号列表分别显示基础积分、加量包和平台奖励余额，并更新国内版套餐等级。\n- ChatGPT 账号列表更新套餐名称、订阅倒计时及多周期额度显示。",
   "releaseNotesI18n": {
