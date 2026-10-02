@@ -5,6 +5,7 @@ import type { LocalTool, ModelConfig } from '../../api/types';
 import type { TKey } from '../../i18n';
 import { useNavigationStore } from '../../stores/navigationStore';
 import { AppManagerContext, type AppManagerContextType } from './context';
+import { AccountSectionRow } from './AccountSectionPrimitives';
 
 vi.mock('../../components', () => ({
   EffortPulse: () => null,
@@ -198,6 +199,11 @@ describe('CodexAccountSection', () => {
           id: 'account-1',
           email: 'first@example.com',
           plan: 'prolite',
+          subscriptionEndAt: 1_800_086_400,
+          quotaWindows: [
+            { label: '5h', remainingPercent: 65, resetAt: 1_800_000_000 },
+            { label: '7d', remainingPercent: 32, resetAt: 1_800_086_400 },
+          ],
           quotaPercent: 32,
           quotaResetAt: 1_800_000_000,
           active: true,
@@ -221,12 +227,109 @@ describe('CodexAccountSection', () => {
     );
 
     expect(markup).toContain('first@example.com');
-    expect(markup).toContain('Pro 5X');
+    expect(markup).toContain('Pro 100');
+    expect(markup).toContain('65%');
     expect(markup).toContain('32%');
+    expect(markup).not.toContain('5h 65%');
+    expect(markup).not.toContain('7d 32%');
+    expect(markup).not.toContain('bg-cyber-border');
     expect(markup).toContain('aria-checked="true"');
     expect(markup).toContain('agent.refreshAccount');
     expect(markup).not.toContain('role="tooltip"');
     expect(markup).not.toContain('border-b');
+  });
+
+  it('uses the progress bar for one quota window and puts the subscription before the plan', async () => {
+    const { CodexAccountSection } = await import('./AppManagerComponents');
+    const context: Partial<AppManagerContextType> = {
+      codexAccounts: [
+        {
+          id: 'account-1',
+          email: 'a@example.com',
+          plan: 'prolite',
+          subscriptionEndAt: 1_800_086_400,
+          quotaWindows: [{ label: '7d', remainingPercent: 31, resetAt: 1_800_000_000 }],
+          active: false,
+        },
+      ],
+      selectedCodexAccountId: null,
+      isLoadingCodexAccounts: false,
+      isAddingCodexAccount: false,
+      codexOAuthRemainingSeconds: 0,
+      refreshingCodexAccountIds: new Set(),
+    };
+    const markup = renderToStaticMarkup(
+      <AppManagerContext.Provider value={context as AppManagerContextType}>
+        <CodexAccountSection showDivider={false} />
+      </AppManagerContext.Provider>
+    );
+    expect(markup).toContain('bg-cyber-border');
+    expect(markup).toContain('31%');
+    expect(markup).not.toContain('7d 31%');
+    const row = renderToStaticMarkup(
+      <AccountSectionRow
+        selected={false}
+        email="a@example.com"
+        plan="Pro 100"
+        planPrefix={<span>remaining</span>}
+        onSelect={() => {}}
+        onDelete={() => {}}
+      />
+    );
+    expect(row.indexOf('remaining')).toBeLessThan(row.indexOf('Pro 100'));
+  });
+
+  it.each([
+    ['free', 'Free'],
+    ['go', 'Go'],
+    ['plus', 'Plus'],
+    ['pro', 'Pro 200'],
+    ['prolite', 'Pro 100'],
+    ['pro-5x', 'Pro 100'],
+    ['pro-20x', 'Pro 200'],
+    ['promax', 'Pro 500'],
+    ['pro_100', 'Pro 100'],
+    ['pro_200', 'Pro 200'],
+    ['pro_500', 'Pro 500'],
+    ['team', 'Business'],
+    ['enterprise', 'Enterprise'],
+  ])('labels %s as %s', async (plan, label) => {
+    const { CodexAccountSection } = await import('./AppManagerComponents');
+    const context: Partial<AppManagerContextType> = {
+      codexAccounts: [{ id: 'account-1', email: 'a@example.com', plan, active: false }],
+      selectedCodexAccountId: null,
+      isLoadingCodexAccounts: false,
+      isAddingCodexAccount: false,
+      codexOAuthRemainingSeconds: 0,
+      refreshingCodexAccountIds: new Set(),
+    };
+    const markup = renderToStaticMarkup(
+      <AppManagerContext.Provider value={context as AppManagerContextType}>
+        <CodexAccountSection showDivider={false} />
+      </AppManagerContext.Provider>
+    );
+    expect(markup).toContain(`>${label}</span>`);
+  });
+
+  it('reserves enough room for a long plan without a subscription countdown', async () => {
+    const { CodexAccountSection } = await import('./AppManagerComponents');
+    const context: Partial<AppManagerContextType> = {
+      codexAccounts: [
+        { id: 'account-1', email: 'long@example.com', plan: 'enterprise', active: false },
+      ],
+      selectedCodexAccountId: null,
+      isLoadingCodexAccounts: false,
+      isAddingCodexAccount: false,
+      codexOAuthRemainingSeconds: 0,
+      refreshingCodexAccountIds: new Set(),
+    };
+    const markup = renderToStaticMarkup(
+      <AppManagerContext.Provider value={context as AppManagerContextType}>
+        <CodexAccountSection showDivider={false} />
+      </AppManagerContext.Provider>
+    );
+    expect(markup).toContain('grid-cols-[16px_minmax(0,1fr)_72px]');
+    expect(markup).toContain('>Enterprise</span>');
   });
 });
 

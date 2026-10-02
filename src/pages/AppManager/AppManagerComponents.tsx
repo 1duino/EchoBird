@@ -772,32 +772,63 @@ export const CodexAccountSection: React.FC<{ showDivider?: boolean }> = ({
         <div className="space-y-2">
           {codexAccounts.map((account) => {
             const normalizedPlan = account.plan?.trim().toLowerCase().replace(/[-_]/g, ' ') ?? '';
-            const planLabel = ['pro', 'prolite', 'pro lite'].includes(normalizedPlan)
-              ? 'Pro 5X'
-              : normalizedPlan.replace(/\b\w/g, (letter) => letter.toUpperCase());
+            const proTier = normalizedPlan.match(/^pro\s*(100|200|500)$/)?.[1];
+            const planLabel =
+              proTier || ['prolite', 'pro lite', 'pro 5x'].includes(normalizedPlan)
+                ? `Pro ${proTier ?? '100'}`
+                : ['pro', 'pro 20x'].includes(normalizedPlan)
+                  ? 'Pro 200'
+                  : ['promax', 'pro max'].includes(normalizedPlan)
+                    ? 'Pro 500'
+                    : normalizedPlan === 'team'
+                      ? 'Business'
+                      : normalizedPlan.replace(/\b\w/g, (letter) => letter.toUpperCase());
+            const singleWindow =
+              account.quotaWindows?.length === 1 ? account.quotaWindows[0] : null;
+            const quotaPercent = singleWindow
+              ? singleWindow.remainingPercent
+              : account.quotaPercent;
+            const quotaResetAt = singleWindow ? singleWindow.resetAt : account.quotaResetAt;
             return (
               <AccountSectionRow
                 key={account.id}
                 selected={selectedCodexAccountId === account.id}
                 email={account.email}
                 plan={planLabel}
+                widePlan={planLabel.length >= 8}
+                planPrefix={
+                  account.subscriptionEndAt ? (
+                    <QuotaCountdown resetAt={account.subscriptionEndAt} compact />
+                  ) : undefined
+                }
                 refreshing={refreshingCodexAccountIds.has(account.id)}
                 onSelect={() => setSelectedCodexAccountId(account.id)}
                 onRefresh={() => void refreshCodexAccountQuota(account)}
                 onDelete={() => void deleteCodexAccount(account)}
                 secondary={
-                  <span className="flex h-[16px] items-center justify-between">
-                    <span className="h-1.5 min-w-[56px] max-w-[80px] flex-1 overflow-hidden rounded-full bg-cyber-border">
-                      <span
-                        className="block h-full rounded-full bg-cyber-bg"
-                        style={{ width: `${account.quotaPercent ?? 0}%` }}
-                      />
+                  account.quotaWindows && account.quotaWindows.length > 1 ? (
+                    <span className="flex h-[16px] min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap text-[11px] font-semibold leading-[16px] text-cyber-text">
+                      {account.quotaWindows.map((window, index) => (
+                        <span key={index} className="flex flex-shrink-0 items-center">
+                          {window.remainingPercent}%
+                          <QuotaCountdown resetAt={window.resetAt} compact small parenthesized />
+                        </span>
+                      ))}
                     </span>
-                    <span className="ml-[6px] w-[30px] flex-shrink-0 text-right text-[12px] font-semibold leading-[16px] text-cyber-text">
-                      {account.quotaPercent ?? 0}%
+                  ) : (
+                    <span className="flex h-[16px] items-center justify-between">
+                      <span className="h-1.5 min-w-[56px] max-w-[80px] flex-1 overflow-hidden rounded-full bg-cyber-border">
+                        <span
+                          className="block h-full rounded-full bg-cyber-bg"
+                          style={{ width: `${quotaPercent ?? 0}%` }}
+                        />
+                      </span>
+                      <span className="ml-[6px] w-[30px] flex-shrink-0 text-right text-[12px] font-semibold leading-[16px] text-cyber-text">
+                        {quotaPercent == null ? '—' : `${quotaPercent}%`}
+                      </span>
+                      <QuotaCountdown resetAt={quotaResetAt} />
                     </span>
-                    <QuotaCountdown resetAt={account.quotaResetAt} />
-                  </span>
+                  )
                 }
               />
             );

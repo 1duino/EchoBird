@@ -34,6 +34,8 @@ export const AccountSectionRow: React.FC<{
   selected: boolean;
   email: string;
   plan?: string | null;
+  planPrefix?: React.ReactNode;
+  widePlan?: boolean;
   secondary?: React.ReactNode;
   onSelect: () => void;
   onDelete: () => void;
@@ -45,6 +47,8 @@ export const AccountSectionRow: React.FC<{
   selected,
   email,
   plan,
+  planPrefix,
+  widePlan,
   secondary,
   onSelect,
   onDelete,
@@ -67,19 +71,22 @@ export const AccountSectionRow: React.FC<{
           onSelect();
         }
       }}
-      className={`account-pill ${colorClassName} grid h-12 ${leadingAction ? 'grid-cols-[16px_minmax(0,1fr)_60px]' : 'grid-cols-[16px_minmax(0,1fr)_44px]'} items-center gap-2 rounded-full border border-transparent px-3 transition-opacity hover:opacity-90`}
+      className={`account-pill ${colorClassName} grid h-12 ${planPrefix ? 'grid-cols-[16px_minmax(0,1fr)_100px]' : widePlan ? 'grid-cols-[16px_minmax(0,1fr)_72px]' : leadingAction ? 'grid-cols-[16px_minmax(0,1fr)_60px]' : 'grid-cols-[16px_minmax(0,1fr)_44px]'} items-center gap-2 rounded-full border border-transparent px-3 transition-opacity hover:opacity-90`}
     >
       <span className="flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-cyber-bg">
         {selected && <span className="h-[8px] w-[8px] rounded-full bg-cyber-bg" />}
       </span>
-      <span className="grid min-w-0 auto-rows-[16px] items-center">
+      <span className="grid min-w-0 grid-cols-[minmax(0,1fr)] auto-rows-[16px] items-center">
         <span className="block truncate text-[13px] font-semibold text-cyber-text">{email}</span>
         <span className="flex h-[16px] items-center gap-2 text-[12px] text-cyber-text">
           {secondary ?? '—'}
         </span>
       </span>
       <span className="grid auto-rows-[16px] items-center justify-items-center">
-        <span className="whitespace-nowrap text-[12px] font-semibold text-cyber-text">
+        <span
+          className={`${planPrefix ? 'flex items-center gap-2 ' : ''}whitespace-nowrap text-[12px] font-semibold text-cyber-text`}
+        >
+          {planPrefix}
           {plan || '—'}
         </span>
         <span className={`flex items-center ${leadingAction ? 'gap-0' : 'gap-1.5'}`}>

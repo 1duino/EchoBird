@@ -45,6 +45,8 @@ export interface CodexAccount {
   id: string;
   email: string;
   plan?: string;
+  subscriptionEndAt?: number | null;
+  quotaWindows?: { label?: string | null; remainingPercent: number; resetAt?: number | null }[];
   quotaPercent?: number | null;
   quotaResetAt?: number | null;
   active: boolean;

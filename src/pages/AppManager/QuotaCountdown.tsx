@@ -16,8 +16,10 @@ function formatQuotaCountdown(resetAt: number, now: number, compact?: boolean): 
 export const QuotaCountdown: React.FC<{
   resetAt?: number | null;
   compact?: boolean;
+  small?: boolean;
+  parenthesized?: boolean;
   label?: string;
-}> = ({ resetAt, compact, label }) => {
+}> = ({ resetAt, compact, small, parenthesized, label }) => {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     if (!resetAt) return;
@@ -33,9 +35,9 @@ export const QuotaCountdown: React.FC<{
   return (
     <span
       aria-label={label && countdown ? `${label} ${countdown}` : undefined}
-      className={`${compact ? '' : 'w-[64px] '}flex-shrink-0 text-center text-[12px] font-semibold leading-[16px] text-cyber-text`}
+      className={`${compact ? '' : 'w-[64px] '}flex-shrink-0 text-center ${small ? 'text-[10px]' : 'text-[12px]'} font-semibold leading-[16px] text-cyber-text`}
     >
-      {countdown}
+      {parenthesized && countdown ? `(${countdown})` : countdown}
     </span>
   );
 };
