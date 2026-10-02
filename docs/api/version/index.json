@@ -1,6 +1,6 @@
 {
-  "version": "5.8.4",
-  "releaseDate": "2026-10-01",
+  "version": "5.8.5",
+  "releaseDate": "2026-10-02",
   "releaseNotes": "- 国内版 WorkBuddy 账号支持一键领取每日奖励，账号列表显示领取状态。\n- WorkBuddy 账号列表分别显示基础积分、加量包和平台奖励余额，并更新国内版套餐等级。\n- ChatGPT 账号列表更新套餐名称、订阅倒计时及多周期额度显示。",
   "releaseNotesI18n": {
     "zh-cn": "- 国内版 WorkBuddy 账号支持一键领取每日奖励，账号列表显示领取状态。\n- WorkBuddy 账号列表分别显示基础积分、加量包和平台奖励余额，并更新国内版套餐等级。\n- ChatGPT 账号列表更新套餐名称、订阅倒计时及多周期额度显示。",
