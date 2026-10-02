@@ -39,6 +39,7 @@ export const AccountSectionRow: React.FC<{
   onDelete: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
+  leadingAction?: React.ReactNode;
   colorClassName?: string;
 }> = ({
   selected,
@@ -49,6 +50,7 @@ export const AccountSectionRow: React.FC<{
   onDelete,
   refreshing,
   onRefresh,
+  leadingAction,
   colorClassName = '',
 }) => {
   const { t } = useI18n();
@@ -65,7 +67,7 @@ export const AccountSectionRow: React.FC<{
           onSelect();
         }
       }}
-      className={`account-pill ${colorClassName} grid h-12 grid-cols-[16px_minmax(0,1fr)_44px] items-center gap-2 rounded-full border border-transparent px-3 transition-opacity hover:opacity-90`}
+      className={`account-pill ${colorClassName} grid h-12 ${leadingAction ? 'grid-cols-[16px_minmax(0,1fr)_60px]' : 'grid-cols-[16px_minmax(0,1fr)_44px]'} items-center gap-2 rounded-full border border-transparent px-3 transition-opacity hover:opacity-90`}
     >
       <span className="flex h-[16px] w-[16px] items-center justify-center rounded-full border-2 border-cyber-bg">
         {selected && <span className="h-[8px] w-[8px] rounded-full bg-cyber-bg" />}
@@ -80,7 +82,8 @@ export const AccountSectionRow: React.FC<{
         <span className="whitespace-nowrap text-[12px] font-semibold text-cyber-text">
           {plan || '—'}
         </span>
-        <span className="flex items-center gap-1.5">
+        <span className={`flex items-center ${leadingAction ? 'gap-0' : 'gap-1.5'}`}>
+          {leadingAction}
           {onRefresh && (
             <button
               type="button"

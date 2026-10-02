@@ -1066,6 +1066,7 @@ pub fn run() {
             tool_commands::cancel_workbuddy_login,
             tool_commands::switch_workbuddy_account,
             tool_commands::refresh_workbuddy_account_quota,
+            tool_commands::claim_workbuddy_daily_credits,
             tool_commands::delete_workbuddy_account,
             tool_commands::list_codex_accounts,
             tool_commands::capture_current_codex_account,

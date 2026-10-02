@@ -85,6 +85,20 @@ pub struct Account {
     pub plan: Option<String>,
     pub remaining: Option<f64>,
     pub total: Option<f64>,
+    #[serde(default)]
+    pub base_remaining: Option<f64>,
+    #[serde(default)]
+    pub base_total: Option<f64>,
+    #[serde(default)]
+    pub base_reset_at: Option<i64>,
+    #[serde(default)]
+    pub reward_remaining: Option<f64>,
+    #[serde(default)]
+    pub reward_total: Option<f64>,
+    #[serde(default)]
+    pub addon_remaining: Option<f64>,
+    #[serde(default)]
+    pub daily_claimed_at: Option<i64>,
     pub expires_at: Option<i64>,
     pub active: bool,
 }
@@ -182,6 +196,13 @@ fn snapshot(edition: Edition, session: Value) -> Result<Saved, String> {
             plan: None,
             remaining: None,
             total: None,
+            base_remaining: None,
+            base_total: None,
+            base_reset_at: None,
+            reward_remaining: None,
+            reward_total: None,
+            addon_remaining: None,
+            daily_claimed_at: None,
             expires_at: None,
             active: false,
         },
@@ -521,25 +542,63 @@ async fn ensure_fresh(saved: &mut Saved) -> Result<(), String> {
 pub async fn refresh(edition: Edition, id: &str) -> Result<Account, String> {
     let _guard = ACCOUNT_LOCK.lock().await;
     let mut saved = load(id, edition)?;
-    ensure_fresh(&mut saved).await?;
-    let result = credits::fetch(&saved).await;
+    refresh_saved(&mut saved, true).await
+}
+
+async fn refresh_saved(saved: &mut Saved, sync_checkin_status: bool) -> Result<Account, String> {
+    ensure_fresh(saved).await?;
+    let result = credits::fetch(saved).await;
     let quota = match result {
         Err(e) if e.starts_with("accountError.loginRequired") => {
-            refresh_token(&mut saved).await?;
-            credits::fetch(&saved).await?
+            refresh_token(saved).await?;
+            credits::fetch(saved).await?
         }
         other => other?,
     };
     saved.summary.remaining = Some(quota.remaining);
     saved.summary.total = Some(quota.total);
+    saved.summary.base_remaining = quota.base_remaining;
+    saved.summary.base_total = quota.base_total;
+    saved.summary.base_reset_at = quota.base_reset_at;
+    saved.summary.reward_remaining = quota.reward_remaining;
+    saved.summary.reward_total = quota.reward_total;
+    saved.summary.addon_remaining = quota.addon_remaining;
     saved.summary.expires_at = quota.expires_at;
     saved.summary.plan = quota.plan;
-    saved.summary.active = read(&edition.auth_path()?)
+    if sync_checkin_status && saved.summary.edition == Edition::Cn {
+        if let Ok(checked_in) = credits::checkin_status(saved).await {
+            saved.summary.daily_claimed_at = checked_in.then(|| chrono::Utc::now().timestamp());
+        }
+    }
+    saved.summary.active = read(&saved.summary.edition.auth_path()?)
         .ok()
-        .and_then(|v| snapshot(edition, v).ok())
-        .is_some_and(|v| v.summary.id == id);
+        .and_then(|v| snapshot(saved.summary.edition, v).ok())
+        .is_some_and(|v| v.summary.id == saved.summary.id);
+    save(saved)?;
+    Ok(saved.summary.clone())
+}
+
+pub async fn claim_daily(edition: Edition, id: &str) -> Result<Account, String> {
+    if edition != Edition::Cn {
+        return Err("accountError.claimUnavailable".into());
+    }
+    let _guard = ACCOUNT_LOCK.lock().await;
+    let mut saved = load(id, edition)?;
+    ensure_fresh(&mut saved).await?;
+    if credits::checkin_status(&saved).await != Ok(true) {
+        match credits::claim_daily(&saved).await {
+            Err(error) if error.starts_with("accountError.loginRequired") => {
+                refresh_token(&mut saved).await?;
+                credits::claim_daily(&saved).await?;
+            }
+            result => result?,
+        }
+    }
+    saved.summary.daily_claimed_at = Some(chrono::Utc::now().timestamp());
     save(&saved)?;
-    Ok(saved.summary)
+    Ok(refresh_saved(&mut saved, false)
+        .await
+        .unwrap_or_else(|_| saved.summary.clone()))
 }
 fn merge_session(mut current: Value, saved: &Saved) -> Result<Value, String> {
     if !current.is_object() {
@@ -692,8 +751,36 @@ mod tests {
     fn saved_accounts_without_plan_remain_readable() {
         let mut value = serde_json::to_value(snapshot(Edition::Cn, session()).unwrap()).unwrap();
         value["summary"].as_object_mut().unwrap().remove("plan");
+        value["summary"]
+            .as_object_mut()
+            .unwrap()
+            .remove("baseRemaining");
+        for key in [
+            "baseTotal",
+            "baseResetAt",
+            "rewardRemaining",
+            "rewardTotal",
+            "addonRemaining",
+        ] {
+            value["summary"].as_object_mut().unwrap().remove(key);
+        }
+        value["summary"]
+            .as_object_mut()
+            .unwrap()
+            .remove("dailyClaimedAt");
         let saved: Saved = serde_json::from_value(value).unwrap();
         assert_eq!(saved.summary.plan, None);
+        assert_eq!(saved.summary.base_remaining, None);
+        assert_eq!(saved.summary.reward_remaining, None);
+        assert_eq!(saved.summary.addon_remaining, None);
+        assert_eq!(saved.summary.daily_claimed_at, None);
+    }
+    #[tokio::test]
+    async fn international_daily_claim_is_rejected_before_loading_credentials() {
+        assert_eq!(
+            claim_daily(Edition::Ai, "invalid-id").await.unwrap_err(),
+            "accountError.claimUnavailable"
+        );
     }
     #[tokio::test]
     async fn account_list_does_not_wait_for_quota_refresh_lock() {

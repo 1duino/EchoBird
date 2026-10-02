@@ -279,7 +279,7 @@ export function useManagedAccounts<A extends ManagedAccount, L extends ManagedLo
     }
   };
 
-  const refresh = async (account: A) => {
+  const refresh = async (account: A, operation?: (account: A) => Promise<A>) => {
     const requests = refreshRequests.current;
     const adapter = clientRef.current;
     if (!enabled || requests.has(account.id) || requests.size >= (adapter.refreshLimit ?? Infinity))
@@ -289,7 +289,7 @@ export function useManagedAccounts<A extends ManagedAccount, L extends ManagedLo
     requests.set(account.id, request);
     setRefreshing(new Set(requests.keys()));
     try {
-      const updated = await adapter.refresh(account);
+      const updated = await (operation ?? adapter.refresh)(account);
       if (current === generation.current) {
         invalidateList();
         setRows((prev) => ({

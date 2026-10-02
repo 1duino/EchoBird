@@ -286,6 +286,13 @@ export interface WorkBuddyAccount {
   plan: string | null;
   remaining: number | null;
   total: number | null;
+  baseRemaining?: number | null;
+  baseTotal?: number | null;
+  baseResetAt?: number | null;
+  rewardRemaining?: number | null;
+  rewardTotal?: number | null;
+  addonRemaining?: number | null;
+  dailyClaimedAt?: number | null;
   expiresAt: number | null;
   active: boolean;
 }
@@ -317,6 +324,12 @@ export function refreshWorkBuddyAccountQuota(
   accountId: string
 ): Promise<WorkBuddyAccount> {
   return invoke('refresh_workbuddy_account_quota', { edition, accountId });
+}
+export function claimWorkBuddyDailyCredits(
+  edition: WorkBuddyEdition,
+  accountId: string
+): Promise<WorkBuddyAccount> {
+  return invoke('claim_workbuddy_daily_credits', { edition, accountId });
 }
 export function deleteWorkBuddyAccount(
   edition: WorkBuddyEdition,
