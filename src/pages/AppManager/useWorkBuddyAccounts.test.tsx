@@ -9,6 +9,7 @@ import { AppManagerContext, type AppManagerContextType } from './context';
 vi.mock('../../api/tauri', () => ({
   listWorkBuddyAccounts: vi.fn(),
   refreshWorkBuddyAccountQuota: vi.fn(),
+  claimWorkBuddyDailyCredits: vi.fn(),
   startWorkBuddyLogin: vi.fn(),
   pollWorkBuddyLogin: vi.fn(),
   cancelWorkBuddyLogin: vi.fn().mockResolvedValue(undefined),
@@ -69,9 +70,9 @@ async function mount(edition: api.WorkBuddyEdition = 'workbuddy') {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
-  vi.mocked(api.listWorkBuddyAccounts).mockImplementation(async (edition) =>
-    edition === 'workbuddy' ? [cn] : [ai]
-  );
+  vi.mocked(api.listWorkBuddyAccounts)
+    .mockReset()
+    .mockImplementation(async (edition) => (edition === 'workbuddy' ? [cn] : [ai]));
 });
 afterEach(() => {
   act(() => {
@@ -93,6 +94,7 @@ describe('WorkBuddy account interactions', () => {
     });
     expect(state.selectedId).toBeNull();
     expect(api.refreshWorkBuddyAccountQuota).not.toHaveBeenCalled();
+    expect(api.claimWorkBuddyDailyCredits).not.toHaveBeenCalled();
     expect(api.listWorkBuddyAccounts).toHaveBeenCalledTimes(1);
   });
 
@@ -112,6 +114,7 @@ describe('WorkBuddy account interactions', () => {
     expect(state.accounts).toEqual([cn]);
     expect(state.selectedId).toBe(cn.id);
     expect(api.refreshWorkBuddyAccountQuota).not.toHaveBeenCalled();
+    expect(api.claimWorkBuddyDailyCredits).not.toHaveBeenCalled();
   });
 
   it('ignores a late list response after changing editions', async () => {
@@ -182,6 +185,7 @@ describe('WorkBuddy account interactions', () => {
 
   it('does not intercept keyboard events from nested action buttons', () => {
     const select = vi.fn();
+    const claimDaily = vi.fn();
     const context = {
       selectedTool: 'workbuddy',
       workBuddyAccounts: {
@@ -189,6 +193,7 @@ describe('WorkBuddy account interactions', () => {
         selectedId: null,
         refreshing: new Set(),
         select,
+        claimDaily,
       },
     } as unknown as AppManagerContextType;
     act(() => {
@@ -204,7 +209,177 @@ describe('WorkBuddy account interactions', () => {
     row.props.onKeyDown({ key: 'Enter', target: {}, currentTarget, preventDefault });
     expect(select).not.toHaveBeenCalled();
     expect(preventDefault).not.toHaveBeenCalled();
+    const claim = renderer.root.findByProps({ 'aria-label': 'agent.claimDailyCredits Domestic' });
+    const stopPropagation = vi.fn();
+    claim.props.onClick({ stopPropagation });
+    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(claimDaily).toHaveBeenCalledWith(cn);
+    expect(select).not.toHaveBeenCalled();
+    for (const key of ['Enter', ' ']) {
+      row.props.onKeyDown({ key, target: claim, currentTarget, preventDefault });
+    }
+    expect(select).not.toHaveBeenCalled();
     row.props.onKeyDown({ key: 'Enter', target: currentTarget, currentTarget, preventDefault });
     expect(select).toHaveBeenCalledWith(cn.id);
+  });
+
+  it('claims explicitly, shares the refresh lock, and updates balances without selecting', async () => {
+    await mount();
+    const result = deferred<api.WorkBuddyAccount>();
+    vi.mocked(api.claimWorkBuddyDailyCredits).mockReturnValueOnce(result.promise);
+    let claiming!: Promise<void>;
+    act(() => {
+      claiming = state.claimDaily(cn);
+    });
+    expect(state.refreshing.has(cn.id)).toBe(true);
+    await act(async () => {
+      await state.claimDaily(cn);
+      await state.refresh(cn);
+    });
+    expect(api.claimWorkBuddyDailyCredits).toHaveBeenCalledExactlyOnceWith('workbuddy', cn.id);
+    expect(api.refreshWorkBuddyAccountQuota).not.toHaveBeenCalled();
+    await act(async () => {
+      result.resolve({
+        ...cn,
+        remaining: 30,
+        rewardRemaining: 20,
+        addonRemaining: 5,
+        dailyClaimedAt: Date.now() / 1000,
+      });
+      await claiming;
+    });
+    expect(state.accounts[0].remaining).toBe(30);
+    expect(state.accounts[0].rewardRemaining).toBe(20);
+    expect(state.accounts[0].addonRemaining).toBe(5);
+    expect(state.refreshing.size).toBe(0);
+    expect(clearModel).not.toHaveBeenCalled();
+    expect(showError).not.toHaveBeenCalled();
+  });
+
+  it('does not claim during a pending refresh or for an international/disabled tool', async () => {
+    await mount();
+    const result = deferred<api.WorkBuddyAccount>();
+    vi.mocked(api.refreshWorkBuddyAccountQuota).mockReturnValueOnce(result.promise);
+    let pending!: Promise<void>;
+    act(() => {
+      pending = state.refresh(cn);
+    });
+    await act(async () => {
+      await state.claimDaily(cn);
+    });
+    await act(async () => {
+      result.resolve(cn);
+      await pending;
+    });
+    act(() => {
+      renderer.update(<Harness edition="workbuddyai" />);
+    });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await state.claimDaily(ai);
+    });
+    act(() => {
+      renderer.update(<Harness edition={null} />);
+    });
+    await act(async () => {
+      await state.claimDaily(cn);
+    });
+    expect(api.claimWorkBuddyDailyCredits).not.toHaveBeenCalled();
+  });
+
+  it('preserves cached balances and reports an explicit claim failure', async () => {
+    await mount();
+    vi.mocked(api.claimWorkBuddyDailyCredits).mockRejectedValueOnce('accountError.claim');
+    await act(async () => {
+      await state.claimDaily(cn);
+    });
+    expect(state.accounts).toEqual([cn]);
+    expect(state.refreshing.size).toBe(0);
+    expect(showError).toHaveBeenCalledWith('accountError.claim');
+  });
+
+  it.each([false, true])(
+    'ignores late claim success/failure after leaving (failure=%s)',
+    async (fail) => {
+      await mount();
+      const result = deferred<api.WorkBuddyAccount>();
+      vi.mocked(api.claimWorkBuddyDailyCredits).mockImplementationOnce(async () => {
+        const account = await result.promise;
+        if (fail) throw new Error('accountError.claim');
+        return account;
+      });
+      let claiming!: Promise<void>;
+      act(() => {
+        claiming = state.claimDaily(cn);
+      });
+      act(() => {
+        renderer.update(<Harness edition="workbuddyai" />);
+      });
+      await act(async () => {
+        await vi.runOnlyPendingTimersAsync();
+        result.resolve({ ...cn, remaining: 50 });
+        await claiming;
+      });
+      expect(state.accounts).toEqual([ai]);
+      expect(showError).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not resurrect a deleted account after a pending claim', async () => {
+    await mount();
+    const result = deferred<api.WorkBuddyAccount>();
+    vi.mocked(api.claimWorkBuddyDailyCredits).mockReturnValueOnce(result.promise);
+    let claiming!: Promise<void>;
+    act(() => {
+      claiming = state.claimDaily(cn);
+    });
+    await act(async () => {
+      await state.remove(cn);
+    });
+    await act(async () => {
+      result.resolve({ ...cn, remaining: 40 });
+      await claiming;
+    });
+    expect(state.accounts).toEqual([]);
+    expect(state.selectedId).toBeNull();
+  });
+
+  it('disables claim during a request and resets the claimed icon on the next China day', async () => {
+    vi.setSystemTime(new Date('2026-10-02T15:59:30Z'));
+    const context = {
+      selectedTool: 'workbuddy',
+      workBuddyAccounts: {
+        accounts: [{ ...cn, dailyClaimedAt: Date.now() / 1000 }],
+        refreshing: new Set([cn.id]),
+      },
+    } as unknown as AppManagerContextType;
+    act(() => {
+      renderer = create(
+        <AppManagerContext.Provider value={context}>
+          <WorkBuddyAccountSection />
+        </AppManagerContext.Provider>
+      );
+    });
+    expect(
+      renderer.root.findByProps({ 'aria-label': 'agent.dailyCreditsClaimed Domestic' }).props
+        .disabled
+    ).toBe(true);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(
+      renderer.root.findByProps({ 'aria-label': 'agent.claimDailyCredits Domestic' }).props.disabled
+    ).toBe(true);
+    context.workBuddyAccounts.refreshing.clear();
+    act(() => {
+      renderer.update(
+        <AppManagerContext.Provider value={{ ...context }}>
+          <WorkBuddyAccountSection />
+        </AppManagerContext.Provider>
+      );
+    });
+    expect(
+      renderer.root.findByProps({ 'aria-label': 'agent.claimDailyCredits Domestic' }).props.disabled
+    ).toBe(false);
   });
 });

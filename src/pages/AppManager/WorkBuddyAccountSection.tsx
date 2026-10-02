@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Check, Gift } from 'lucide-react';
 import { useAppManager } from './context';
 import { ModelSwitchDivider } from './ModelSwitchDivider';
 import { AccountSectionButton, AccountSectionRow } from './AccountSectionPrimitives';
@@ -9,8 +10,31 @@ export const WorkBuddyAccountSection: React.FC<{ showDivider?: boolean }> = ({
 }) => {
   const { workBuddyAccounts, selectedTool } = useAppManager();
   const { t } = useI18n();
-  const { accounts, selectedId, select, busy, remainingSeconds, refreshing, add, refresh, remove } =
-    workBuddyAccounts;
+  const {
+    accounts,
+    selectedId,
+    select,
+    busy,
+    remainingSeconds,
+    refreshing,
+    add,
+    refresh,
+    remove,
+    claimDaily,
+  } = workBuddyAccounts;
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (selectedTool !== 'workbuddy') return;
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, [selectedTool]);
+  const claimedToday = (at?: number | null) =>
+    at != null &&
+    Math.floor((at + 8 * 3600) / 86400) === Math.floor((now / 1000 + 8 * 3600) / 86400);
+  const formatCredits = (value?: number | null) =>
+    value == null
+      ? '—'
+      : value.toLocaleString(undefined, { maximumFractionDigits: 2, useGrouping: false });
   return (
     <section className={showDivider ? 'mb-3' : undefined}>
       <AccountSectionButton
@@ -22,37 +46,82 @@ export const WorkBuddyAccountSection: React.FC<{ showDivider?: boolean }> = ({
       />
       {accounts.length > 0 && (
         <div className="space-y-2">
-          {accounts.map((account) => (
-            <AccountSectionRow
-              key={account.id}
-              colorClassName="workbuddy-account-pill"
-              selected={selectedId === account.id}
-              email={account.name}
-              plan={account.plan}
-              refreshing={refreshing.has(account.id)}
-              onSelect={() => select(account.id)}
-              onRefresh={() => void refresh(account)}
-              onDelete={() => void remove(account)}
-              secondary={
-                <span className="flex h-[16px] items-center justify-between">
-                  <span className="h-1.5 min-w-0 max-w-[80px] flex-1 overflow-hidden rounded-full bg-cyber-border">
-                    <span
-                      className="block h-full rounded-full bg-cyber-bg"
-                      style={{
-                        width: `${account.total && account.remaining != null ? Math.min(100, Math.max(0, (account.remaining / account.total) * 100)) : 0}%`,
+          {accounts.map((account) => {
+            const hasBase = account.baseRemaining != null && (account.baseTotal ?? 0) > 0;
+            const hasReward = account.rewardRemaining != null && (account.rewardTotal ?? 0) > 0;
+            const hasAddon = account.addonRemaining != null && account.addonRemaining > 0;
+            const dailyClaimed = claimedToday(account.dailyClaimedAt);
+            return (
+              <AccountSectionRow
+                key={account.id}
+                colorClassName="workbuddy-account-pill"
+                selected={selectedId === account.id}
+                email={account.name}
+                plan={account.plan}
+                refreshing={refreshing.has(account.id)}
+                onSelect={() => select(account.id)}
+                onRefresh={() => void refresh(account)}
+                onDelete={() => void remove(account)}
+                leadingAction={
+                  account.edition === 'workbuddy' ? (
+                    <button
+                      type="button"
+                      aria-label={`${t(dailyClaimed ? 'agent.dailyCreditsClaimed' : 'agent.claimDailyCredits')} ${account.name}`}
+                      disabled={refreshing.has(account.id) || dailyClaimed}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void claimDaily(account);
                       }}
-                    />
+                      className="account-icon-button flex h-5 w-5 items-center justify-center rounded-full disabled:opacity-40"
+                    >
+                      {dailyClaimed ? (
+                        <Check size={12} aria-hidden="true" />
+                      ) : (
+                        <Gift size={12} aria-hidden="true" />
+                      )}
+                    </button>
+                  ) : undefined
+                }
+                secondary={
+                  <span className="flex h-[16px] min-w-0 items-center gap-1 overflow-hidden text-[11px] font-semibold whitespace-nowrap">
+                    <span
+                      className="flex flex-shrink-0 items-center gap-1"
+                      aria-label={t('agent.baseCredits')}
+                    >
+                      {formatCredits(account.baseRemaining)}
+                      {hasBase && (
+                        <QuotaCountdown
+                          resetAt={account.baseResetAt}
+                          compact
+                          label={t('agent.baseCreditsReset')}
+                        />
+                      )}
+                    </span>
+                    {hasAddon && (
+                      <span className="flex-shrink-0" aria-label={t('agent.purchasedCredits')}>
+                        {formatCredits(account.addonRemaining)}
+                      </span>
+                    )}
+                    {account.edition === 'workbuddy' && !dailyClaimed ? (
+                      <span className="flex-shrink-0" aria-label={t('agent.dailyCreditsUnclaimed')}>
+                        {t('agent.dailyCreditsUnclaimed')}
+                      </span>
+                    ) : (
+                      hasReward && (
+                        <span
+                          className="flex flex-shrink-0 items-center gap-0.5"
+                          aria-label={t('agent.rewardCredits')}
+                        >
+                          <Gift size={10} aria-hidden="true" />
+                          {formatCredits(account.rewardRemaining)}
+                        </span>
+                      )
+                    )}
                   </span>
-                  <span className="min-w-[30px] flex-shrink-0 text-right text-[12px] font-semibold leading-[16px] text-cyber-text">
-                    {account.remaining == null
-                      ? '—'
-                      : `${account.remaining.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${t('agent.credits')}`}
-                  </span>
-                  <QuotaCountdown resetAt={account.expiresAt} />
-                </span>
-              }
-            />
-          ))}
+                }
+              />
+            );
+          })}
         </div>
       )}
       {showDivider && <ModelSwitchDivider />}

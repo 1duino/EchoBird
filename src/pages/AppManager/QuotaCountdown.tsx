@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
-function formatQuotaCountdown(resetAt: number, now: number): string {
+function formatQuotaCountdown(resetAt: number, now: number, compact?: boolean): string {
   const minutes = Math.max(0, Math.ceil((resetAt * 1000 - now) / 60_000));
-  if (minutes >= 24 * 60) {
+  if (minutes >= (compact ? 48 : 24) * 60) {
     const days = Math.floor(minutes / (24 * 60));
     const hours = Math.floor((minutes % (24 * 60)) / 60);
     return `${days}d${hours}h`;
@@ -13,7 +13,13 @@ function formatQuotaCountdown(resetAt: number, now: number): string {
   return `${minutes}m`;
 }
 
-export const QuotaCountdown: React.FC<{ resetAt?: number | null }> = ({ resetAt }) => {
+export const QuotaCountdown: React.FC<{
+  resetAt?: number | null;
+  compact?: boolean;
+  small?: boolean;
+  parenthesized?: boolean;
+  label?: string;
+}> = ({ resetAt, compact, small, parenthesized, label }) => {
   const [now, setNow] = useState<number | null>(null);
   useEffect(() => {
     if (!resetAt) return;
@@ -24,9 +30,14 @@ export const QuotaCountdown: React.FC<{ resetAt?: number | null }> = ({ resetAt 
       clearInterval(timer);
     };
   }, [resetAt]);
+  if (compact && (!resetAt || now === null || resetAt * 1000 <= now)) return null;
+  const countdown = resetAt && now !== null ? formatQuotaCountdown(resetAt, now, compact) : '';
   return (
-    <span className="w-[64px] flex-shrink-0 text-center text-[12px] font-semibold leading-[16px] text-cyber-text">
-      {resetAt && now ? formatQuotaCountdown(resetAt, now) : ''}
+    <span
+      aria-label={label && countdown ? `${label} ${countdown}` : undefined}
+      className={`${compact ? '' : 'w-[64px] '}flex-shrink-0 text-center ${small ? 'text-[10px]' : 'text-[12px]'} font-semibold leading-[16px] text-cyber-text`}
+    >
+      {parenthesized && countdown ? `(${countdown})` : countdown}
     </span>
   );
 };

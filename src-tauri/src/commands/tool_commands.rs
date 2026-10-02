@@ -726,6 +726,14 @@ pub async fn refresh_workbuddy_account_quota(
 }
 
 #[tauri::command]
+pub async fn claim_workbuddy_daily_credits(
+    edition: WorkBuddyEdition,
+    account_id: String,
+) -> Result<WorkBuddyAccount, String> {
+    workbuddy_accounts::claim_daily(edition, &account_id).await
+}
+
+#[tauri::command]
 pub async fn delete_workbuddy_account(
     edition: WorkBuddyEdition,
     account_id: String,

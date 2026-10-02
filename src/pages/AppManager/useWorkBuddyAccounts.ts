@@ -26,5 +26,9 @@ export function useWorkBuddyAccounts(
       pollInterval: 1500,
     }
   );
-  return { ...managed, accounts: edition ? managed.accounts : [] };
+  const claimDaily = (account: api.WorkBuddyAccount) => {
+    if (edition !== 'workbuddy' || account.edition !== edition) return Promise.resolve();
+    return managed.refresh(account, (row) => api.claimWorkBuddyDailyCredits(row.edition, row.id));
+  };
+  return { ...managed, claimDaily, accounts: edition ? managed.accounts : [] };
 }
