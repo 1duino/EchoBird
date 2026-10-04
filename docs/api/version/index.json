@@ -1,6 +1,6 @@
 {
-  "version": "5.8.6",
-  "releaseDate": "2026-10-02",
+  "version": "5.8.7",
+  "releaseDate": "2026-10-04",
   "releaseNotes": "- 恢复 ZCode 账号管理，支持 BigModel 和 Z.ai 登录及账号切换，点击服务名称或切换图标即可切换登录服务。\n- 优化 ZCode 套餐、额度及倒计时显示，体验账号不再重复显示订阅倒计时。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。\n- 统一 Web Search 与 Claude 系列模型开关的上下间距。",
   "releaseNotesI18n": {
     "zh-cn": "- 恢复 ZCode 账号管理，支持 BigModel 和 Z.ai 登录及账号切换，点击服务名称或切换图标即可切换登录服务。\n- 优化 ZCode 套餐、额度及倒计时显示，体验账号不再重复显示订阅倒计时。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。\n- 统一 Web Search 与 Claude 系列模型开关的上下间距。",
