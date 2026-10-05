@@ -1,11 +1,11 @@
 {
   "version": "5.8.7",
   "releaseDate": "2026-10-04",
-  "releaseNotes": "- 恢复 ZCode 账号管理，支持 BigModel 和 Z.ai 登录及账号切换，点击服务名称或切换图标即可切换登录服务。\n- 优化 ZCode 套餐、额度及倒计时显示，体验账号不再重复显示订阅倒计时。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。\n- 统一 Web Search 与 Claude 系列模型开关的上下间距。",
+  "releaseNotes": "- 新增 ZCode 账号管理，支持 BigModel 和 Z.ai 登录、账号切换，以及套餐、额度和倒计时显示。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。",
   "releaseNotesI18n": {
-    "zh-cn": "- 恢复 ZCode 账号管理，支持 BigModel 和 Z.ai 登录及账号切换，点击服务名称或切换图标即可切换登录服务。\n- 优化 ZCode 套餐、额度及倒计时显示，体验账号不再重复显示订阅倒计时。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。\n- 统一 Web Search 与 Claude 系列模型开关的上下间距。",
-    "en": "- Restore ZCode account management with BigModel and Z.ai login and account switching. Click the service name or switch icon to choose the login service.\n- Improve ZCode plan, quota, and countdown display; trial accounts no longer show a duplicate subscription countdown.\n- Restore the Web Search switch and help text for ChatGPT / Codex CLI so users can choose whether to enable it.\n- Make vertical spacing consistent around Web Search and Claude model switches.",
-    "zh-tw": "- 恢復 ZCode 帳號管理，支援 BigModel 和 Z.ai 登入及帳號切換，點擊服務名稱或切換圖示即可切換登入服務。\n- 改善 ZCode 方案、額度及倒數計時顯示，體驗帳號不再重複顯示訂閱倒數計時。\n- 恢復 ChatGPT / Codex CLI 的 Web Search 開關和提示，可自行選擇是否開啟。\n- 統一 Web Search 與 Claude 系列模型開關的上下間距。",
-    "ja": "- ZCode のアカウント管理を復元し、BigModel と Z.ai のログインとアカウント切り替えに対応しました。サービス名または切り替えアイコンをクリックしてログイン先を選べます。\n- ZCode のプラン、利用枠、残り時間の表示を改善し、体験アカウントで重複していた契約残り時間の表示をなくしました。\n- ChatGPT / Codex CLI の Web Search スイッチと説明を復元し、有効・無効を選べるようにしました。\n- Web Search と Claude 系モデルのスイッチ上下の間隔を統一しました。"
+    "zh-cn": "- 新增 ZCode 账号管理，支持 BigModel 和 Z.ai 登录、账号切换，以及套餐、额度和倒计时显示。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。",
+    "en": "- Add ZCode account management with BigModel and Z.ai login, account switching, and plan, quota, and countdown displays.\n- Restore the Web Search switch and help text for ChatGPT / Codex CLI so users can choose whether to enable it.",
+    "zh-tw": "- 新增 ZCode 帳號管理，支援 BigModel 和 Z.ai 登入、帳號切換，以及方案、額度和倒數計時顯示。\n- 恢復 ChatGPT / Codex CLI 的 Web Search 開關和提示，可自行選擇是否開啟。",
+    "ja": "- ZCode のアカウント管理を新たに追加しました。BigModel と Z.ai のログイン、アカウント切り替え、プラン・利用枠・残り時間の表示に対応しています。\n- ChatGPT / Codex CLI の Web Search スイッチと説明を復元し、有効・無効を選べるようにしました。"
   }
 }
