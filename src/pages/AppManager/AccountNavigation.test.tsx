@@ -621,17 +621,42 @@ it('positive control: passive Grok navigation does not refresh, switch, or log i
   expect(api.switchGrokAccount).not.toHaveBeenCalled();
   expect(api.startGrokLogin).not.toHaveBeenCalled();
 });
-it('WorkBuddy account selection preserves custom model configuration', async () => {
-  vi.mocked(api.listWorkBuddyAccounts).mockResolvedValue([
-    { id: 'fixture', name: 'fixture', edition: 'workbuddy', active: true },
-  ] as never);
-  await mount('workbuddy');
-  await act(async () => {
-    await state.handleLaunch();
-  });
-  expect(api.switchWorkBuddyAccount).toHaveBeenCalledWith('workbuddy', 'fixture');
-  expect(api.restoreToolToOfficial).not.toHaveBeenCalled();
-});
+it.each(['workbuddy', 'workbuddyai'] as const)(
+  '%s: account selection preserves custom model configuration',
+  async (edition) => {
+    vi.mocked(api.listWorkBuddyAccounts).mockResolvedValue([
+      { id: 'fixture', name: 'fixture', edition, active: true },
+    ] as never);
+    await mount(edition);
+    expect(api.switchWorkBuddyAccount).not.toHaveBeenCalled();
+    await act(async () => {
+      await state.handleLaunch();
+    });
+    expect(api.switchWorkBuddyAccount).toHaveBeenCalledExactlyOnceWith(edition, 'fixture');
+    expect(api.restoreToolToOfficial).not.toHaveBeenCalled();
+  }
+);
+it.each(['workbuddy', 'workbuddyai'] as const)(
+  '%s: failed history/account apply is visible and prevents launch',
+  async (edition) => {
+    vi.mocked(api.listWorkBuddyAccounts).mockResolvedValue([
+      { id: 'fixture', name: 'fixture', edition, active: true },
+    ] as never);
+    await mount(edition);
+    const loaded = vi.mocked(api.listWorkBuddyAccounts).mock.calls.length;
+    vi.mocked(api.switchWorkBuddyAccount).mockRejectedValueOnce(
+      new Error('accountError.write|WorkBuddy history: database is locked')
+    );
+    await act(async () => {
+      await state.handleLaunch();
+    });
+    expect(state.applyError).toBe('accountError.write');
+    expect(api.startTool).not.toHaveBeenCalled();
+    expect(api.listWorkBuddyAccounts).toHaveBeenCalledTimes(loaded);
+    expect(api.refreshWorkBuddyAccountQuota).not.toHaveBeenCalled();
+    expect(api.restoreToolToOfficial).not.toHaveBeenCalled();
+  }
+);
 it('positive control: Grok Build without account selection uses the CLI folder picker', async () => {
   await mount('grok');
   expect(state.grokAccounts.selectedId).toBeNull();

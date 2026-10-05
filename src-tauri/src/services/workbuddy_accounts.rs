@@ -13,6 +13,8 @@ use std::{
 
 #[path = "workbuddy_credits.rs"]
 mod credits;
+#[path = "workbuddy_history.rs"]
+mod history;
 static ACCOUNT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 static LOGINS: OnceLock<Mutex<HashMap<String, Login>>> = OnceLock::new();
 const LOGIN_TIMEOUT_SECONDS: i64 = 60;
@@ -664,11 +666,10 @@ pub async fn switch(edition: Edition, id: &str) -> Result<Account, String> {
             &original,
         )?;
     }
-    write(&path, &next)?;
-    if read(&path).as_ref() != Ok(&next) {
-        write(&path, &original)?;
-        return Err("accountError.write".into());
-    }
+    let data_root = dirs::home_dir()
+        .ok_or("accountError.home")?
+        .join(format!(".{}", edition.platform()));
+    history::apply(&path, &data_root, &original, &next)?;
     saved.summary.active = true;
     Ok(saved.summary)
 }
