@@ -60,6 +60,7 @@ vi.mock('../../api/tauri', () => {
     'cancelDeepSeekLogin',
     'pollDeepSeekLogin',
     'refreshDeepSeekAccountQuota',
+    'switchDeepSeekAccount',
     'listGrokAccounts',
     'startGrokLogin',
     'cancelGrokLogin',
@@ -79,6 +80,7 @@ vi.mock('../../api/tauri', () => {
     'cancelCursorLogin',
     'pollCursorLogin',
     'refreshCursorAccount',
+    'switchCursorAccount',
     'listGrokBotAccounts',
     'startGrokBotLogin',
     'cancelGrokBotLogin',
@@ -137,6 +139,8 @@ const listFor = {
   manus: 'listManusAccounts',
   cursor: 'listCursorAccounts',
   grokbot: 'listGrokBotAccounts',
+  antigravity: 'listAntigravityAccounts',
+  antigravitydesktop: 'listAntigravityAccounts',
 } as const;
 type Tool = keyof typeof listFor;
 async function tick() {
@@ -145,11 +149,15 @@ async function tick() {
   });
 }
 async function mount(tool: Tool, installed = true) {
-  useToolsStore
-    .getState()
-    .setDetectedTools([
-      { id: tool, name: tool, category: tool === 'grok' ? 'CLI Code' : 'Desktop', installed },
-    ]);
+  useToolsStore.getState().setDetectedTools([
+    {
+      id: tool,
+      name: tool,
+      category: tool === 'grok' || tool === 'antigravity' ? 'CLI Code' : 'Desktop',
+      noModelConfig: ['antigravity', 'antigravitydesktop', 'cursor'].includes(tool),
+      installed,
+    },
+  ]);
   await act(async () => {
     renderer = create(
       <AppManagerProvider>
@@ -482,6 +490,11 @@ it.each(Object.keys(listFor) as Tool[])(
       api.switchCodexAccount,
       api.switchWorkBuddyAccount,
       api.switchGrokAccount,
+      api.switchDeepSeekAccount,
+      api.switchCursorAccount,
+      api.switchAntigravityAccount,
+      api.startAntigravityLogin,
+      api.refreshAntigravityAccount,
       api.restoreToolToOfficial,
       api.startTool,
     ];
@@ -655,6 +668,82 @@ it.each(['workbuddy', 'workbuddyai'] as const)(
     expect(api.listWorkBuddyAccounts).toHaveBeenCalledTimes(loaded);
     expect(api.refreshWorkBuddyAccountQuota).not.toHaveBeenCalled();
     expect(api.restoreToolToOfficial).not.toHaveBeenCalled();
+  }
+);
+const sharedHistoryTools = [
+  ['zcode', 'listZCodeAccounts', 'switchZCodeAccount'],
+  ['dsh', 'listDeepSeekAccounts', 'switchDeepSeekAccount'],
+  ['grok', 'listGrokAccounts', 'switchGrokAccount'],
+  ['cursor', 'listCursorAccounts', 'switchCursorAccount'],
+  ['antigravity', 'listAntigravityAccounts', 'switchAntigravityAccount'],
+  ['antigravitydesktop', 'listAntigravityAccounts', 'switchAntigravityAccount'],
+] as const;
+it.each(sharedHistoryTools)(
+  '%s: explicit account apply completes before reload and native launch',
+  async (tool, list, apply) => {
+    const row = { id: 'fixture', email: 'fixture@example.test', active: true };
+    vi.mocked(api[list]).mockResolvedValue([row] as never);
+    await mount(tool);
+    act(() => state.setLaunchAfterApply(true));
+    const loaded = vi.mocked(api[list]).mock.calls.length;
+    let complete!: (result: never) => void;
+    vi.mocked(api[apply]).mockReturnValueOnce(
+      new Promise((resolve) => {
+        complete = resolve;
+      }) as never
+    );
+    let task!: Promise<void>;
+    act(() => {
+      task = state.handleLaunch();
+    });
+    await tick();
+    expect(api[apply]).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api[apply]).mock.calls[0][0]).toBe('fixture');
+    expect(api[list]).toHaveBeenCalledTimes(loaded);
+    expect(api.startTool).not.toHaveBeenCalled();
+    await act(async () => {
+      await state.handleLaunch();
+    });
+    expect(api[apply]).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      complete(row as never);
+      await task;
+    });
+    expect(api[list]).toHaveBeenCalledTimes(loaded + 1);
+    expect(api.startTool).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.startTool).mock.calls[0][0]).toBe(tool);
+    expect(state.applyError).toBeNull();
+  }
+);
+it.each(sharedHistoryTools)(
+  '%s: failed account apply preserves cached rows and prevents launch',
+  async (tool, list, apply) => {
+    const row = { id: 'fixture', email: 'fixture@example.test', active: true };
+    vi.mocked(api[list]).mockResolvedValue([row] as never);
+    await mount(tool);
+    const loaded = vi.mocked(api[list]).mock.calls.length;
+    vi.mocked(api[apply]).mockRejectedValueOnce(new Error('accountError.write'));
+    await act(async () => {
+      await state.handleLaunch();
+    });
+    expect(api[apply]).toHaveBeenCalledTimes(1);
+    expect(state.applyError).toBe('accountError.write');
+    expect(api[list]).toHaveBeenCalledTimes(loaded);
+    expect(api.startTool).not.toHaveBeenCalled();
+    const rows = {
+      zcode: state.zcodeAccounts.accounts,
+      dsh: state.deepSeekAccounts.accounts,
+      grok: state.grokAccounts.accounts,
+      cursor: state.cursorAccounts.accounts,
+      antigravity: state.antigravityAccounts.accounts,
+      antigravitydesktop: state.antigravityAccounts.accounts,
+    };
+    expect(rows[tool]).toEqual([row]);
+    expect(api.refreshZCodeAccountQuota).not.toHaveBeenCalled();
+    expect(api.refreshDeepSeekAccountQuota).not.toHaveBeenCalled();
+    expect(api.refreshGrokAccount).not.toHaveBeenCalled();
+    expect(api.refreshCursorAccount).not.toHaveBeenCalled();
+    expect(api.refreshAntigravityAccount).not.toHaveBeenCalled();
   }
 );
 it('positive control: Grok Build without account selection uses the CLI folder picker', async () => {

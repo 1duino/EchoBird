@@ -538,6 +538,57 @@ mod tests {
         assert!(state["aiSettings"].get("teamIds").is_none());
     }
     #[test]
+    fn account_switch_keeps_local_composer_index_messages_and_checkpoints() {
+        let mut db = db();
+        db.execute_batch("CREATE TABLE cursorDiskKV (key TEXT PRIMARY KEY, value BLOB)")
+            .unwrap();
+        let index = json!({"allComposers":[{"composerId":"a-chat","workspaceIdentifier":{"id":"workspace"}},{"composerId":"b-chat","workspaceIdentifier":{"id":"workspace"}}]}).to_string();
+        put(&db, "composer.composerHeaders", &index).unwrap();
+        for (key, value) in [
+            ("composerData:a-chat", br#"{"composerId":"a-chat","fullConversationHeadersOnly":[{"bubbleId":"message"}]}"#.as_slice()),
+            ("composerData:b-chat", br#"{"composerId":"b-chat","conversation":[{"text":"original answer"}]}"#.as_slice()),
+            ("bubbleId:a-chat:message", br#"{"text":"original tool result","type":2}"#.as_slice()),
+            ("checkpointId:a-chat:checkpoint", b"\x00\x01original-checkpoint".as_slice()),
+        ] {
+            db.execute("INSERT INTO cursorDiskKV VALUES (?1,?2)", rusqlite::params![key,value]).unwrap();
+        }
+        let records = |db: &Connection| {
+            // All values remain BLOBs, including native binary checkpoint data.
+            db.prepare("SELECT key,value FROM cursorDiskKV ORDER BY key")
+                .unwrap()
+                .query_map([], |row| {
+                    Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+                })
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+        };
+        let before = records(&db);
+        for user in ["a", "b", "b", "a"] {
+            apply(&mut db, &login(user, None)).unwrap();
+            assert_eq!(
+                native(&db).unwrap().unwrap().email,
+                Some(format!("{user}@example.test"))
+            );
+            assert_eq!(
+                get(&db, "composer.composerHeaders").unwrap().as_deref(),
+                Some(index.as_str())
+            );
+            assert_eq!(records(&db), before);
+        }
+        db.execute_batch("CREATE TRIGGER fail_login BEFORE INSERT ON ItemTable WHEN NEW.key='cursorAuth/refreshToken' BEGIN SELECT RAISE(ABORT,'fixture failure'); END;").unwrap();
+        assert!(apply(&mut db, &login("b", None)).is_err());
+        assert_eq!(
+            native(&db).unwrap().unwrap().email.as_deref(),
+            Some("a@example.test")
+        );
+        assert_eq!(
+            get(&db, "composer.composerHeaders").unwrap().as_deref(),
+            Some(index.as_str())
+        );
+        assert_eq!(records(&db), before);
+    }
+    #[test]
     fn transaction_rolls_back_every_change_on_write_failure_or_invalid_state() {
         let mut db = db();
         let a = login("a", Some(12));

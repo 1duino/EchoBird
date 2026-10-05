@@ -1093,6 +1093,47 @@ mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
+    fn account_switch_preserves_shared_task_index_ids_and_transcripts() {
+        use super::{id, native_account_at, switch_native};
+        use std::fs;
+
+        let dir = fixture_dir();
+        let db_path = dir.join("tasks-index.sqlite");
+        let db = rusqlite::Connection::open(&db_path).unwrap();
+        db.execute_batch("CREATE TABLE tasks (workspace_key TEXT, task_id TEXT PRIMARY KEY, meta_json TEXT); INSERT INTO tasks VALUES ('workspace', 'a-task', '{\"title\":\"A task\"}'), ('workspace', 'b-task', '{\"title\":\"B task\"}');").unwrap();
+        drop(db);
+        let mut originals = vec![(db_path.clone(), fs::read(&db_path).unwrap())];
+        for task_id in ["a-task", "b-task"] {
+            let path = dir
+                .join("sessions/workspace")
+                .join(format!("{task_id}.json"));
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, json!({"taskId":task_id,"messages":[{"role":"assistant","content":"original tool result"}]}).to_string()).unwrap();
+            originals.push((path.clone(), fs::read(path).unwrap()));
+        }
+        for saved in [
+            account("zai", "a"),
+            account("zai", "b"),
+            account("bigmodel", "c"),
+            account("zai", "a"),
+        ] {
+            switch_native(&saved, &dir).unwrap();
+            assert_eq!(
+                native_account_at(&dir).unwrap().as_ref().map(id),
+                Some(id(&saved))
+            );
+            for (path, bytes) in &originals {
+                assert_eq!(&fs::read(path).unwrap(), bytes);
+            }
+        }
+        fs::write(dir.join("setting.json"), "broken").unwrap();
+        assert!(switch_native(&account("zai", "b"), &dir).is_err());
+        for (path, bytes) in &originals {
+            assert_eq!(&fs::read(path).unwrap(), bytes);
+        }
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
     fn quota_refresh_does_not_invent_zero_or_use_reserved_available_units() {
         let mut saved = account("bigmodel", "one");
         saved.plan = Some("Old".into());

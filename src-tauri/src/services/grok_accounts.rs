@@ -4,7 +4,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Mutex, OnceLock},
 };
 
@@ -55,8 +55,17 @@ fn read_auth() -> Result<Value, String> {
     serde_json::from_slice(&fs::read(auth_path()?).map_err(|_| "accountError.read")?)
         .map_err(|_| "accountError.format".into())
 }
-fn write_auth(value: &Value) -> Result<(), String> {
-    super::cursor_auth::write(&auth_path()?, value)
+fn apply_native(dir: &Path, saved: &Saved) -> Result<(), String> {
+    // Grok's local session IDs and logs are shared across logins. Only replace auth.
+    let mut auth = serde_json::Map::new();
+    auth.insert(saved.key.clone(), saved.auth.clone());
+    // The old account's subscription cache must not be shown for the new login.
+    match fs::remove_file(dir.join("settings_cache.json")) {
+        Ok(()) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return Err("accountError.write".into()),
+    }
+    super::cursor_auth::write(&dir.join("auth.json"), &Value::Object(auth))
 }
 fn saved_path(id: &str) -> Result<PathBuf, String> {
     if id.len() != 64 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -238,15 +247,7 @@ pub async fn switch(id: &str) -> Result<Account, String> {
             super::cursor_auth::write(&p, &saved)?;
         }
     }
-    let mut auth = serde_json::Map::new();
-    auth.insert(saved.key.clone(), saved.auth.clone());
-    // The old account's subscription cache must not be shown for the new login.
-    match fs::remove_file(home()?.join(".grok/settings_cache.json")) {
-        Ok(()) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(_) => return Err("accountError.write".into()),
-    }
-    write_auth(&Value::Object(auth))?;
+    apply_native(&home()?.join(".grok"), &saved)?;
     let mut a = saved.summary;
     a.active = true;
     Ok(a)
@@ -267,6 +268,65 @@ pub async fn refresh(id: &str) -> Result<Account, String> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn switching_accounts_keeps_original_local_sessions_and_missing_history() {
+        let dir = std::env::temp_dir().join(format!("grok-history-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let login = |user: &str| {
+            let key = "https://auth.x.ai";
+            let auth = json!({"user_id":user,"email":format!("{user}@example.test"),"access_token":format!("token-{user}")});
+            Saved {
+                summary: summary(key, &json!({key:auth}), true).unwrap(),
+                key: key.into(),
+                auth,
+            }
+        };
+        let a = login("a");
+        let b = login("b");
+        apply_native(&dir, &a).unwrap();
+        assert!(!dir.join("sessions").exists());
+        let mut originals = Vec::new();
+        for id in ["a-session", "b-session"] {
+            let session = dir.join("sessions/workspace").join(id);
+            fs::create_dir_all(&session).unwrap();
+            for (name, value) in [
+                (
+                    "summary.json",
+                    json!({"info":{"id":id,"cwd":"/workspace"},"session_summary":id}),
+                ),
+                (
+                    "chat_history.jsonl",
+                    json!({"role":"assistant","content":"original tool result"}),
+                ),
+            ] {
+                let path = session.join(name);
+                fs::write(&path, value.to_string()).unwrap();
+                originals.push((path.clone(), fs::read(path).unwrap()));
+            }
+        }
+        for saved in [&b, &b, &a] {
+            fs::write(dir.join("settings_cache.json"), "old-plan").unwrap();
+            apply_native(&dir, saved).unwrap();
+            let auth: Value =
+                serde_json::from_slice(&fs::read(dir.join("auth.json")).unwrap()).unwrap();
+            assert_eq!(
+                summary(&saved.key, &auth, true).unwrap().id,
+                saved.summary.id
+            );
+            assert!(!dir.join("settings_cache.json").exists());
+            for (path, bytes) in &originals {
+                assert_eq!(&fs::read(path).unwrap(), bytes);
+            }
+        }
+        // A reported write failure must leave both accounts' original history intact.
+        fs::create_dir(dir.join("settings_cache.json")).unwrap();
+        assert!(apply_native(&dir, &b).is_err());
+        for (path, bytes) in &originals {
+            assert_eq!(&fs::read(path).unwrap(), bytes);
+        }
+        fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn users_on_the_same_issuer_have_independent_snapshots_and_legacy_ids_survive() {
