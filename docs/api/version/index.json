@@ -1,11 +1,11 @@
 {
   "version": "5.8.7",
   "releaseDate": "2026-10-04",
-  "releaseNotes": "- 新增 ZCode 账号管理，支持 BigModel 和 Z.ai 登录、账号切换，以及套餐、额度和倒计时显示。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。",
+  "releaseNotes": "- WorkBuddy 和 WorkBuddy AI 支持切换账号后共享本地聊天记录，保留原会话并继续对话；两个客户端的记录各自独立。\n- 切换 WorkBuddy 账号前自动备份本地聊天记录，切换失败时恢复账号配置和聊天记录。",
   "releaseNotesI18n": {
-    "zh-cn": "- 新增 ZCode 账号管理，支持 BigModel 和 Z.ai 登录、账号切换，以及套餐、额度和倒计时显示。\n- 恢复 ChatGPT / Codex CLI 的 Web Search 开关和提示，可自行选择是否开启。",
-    "en": "- Add ZCode account management with BigModel and Z.ai login, account switching, and plan, quota, and countdown displays.\n- Restore the Web Search switch and help text for ChatGPT / Codex CLI so users can choose whether to enable it.",
-    "zh-tw": "- 新增 ZCode 帳號管理，支援 BigModel 和 Z.ai 登入、帳號切換，以及方案、額度和倒數計時顯示。\n- 恢復 ChatGPT / Codex CLI 的 Web Search 開關和提示，可自行選擇是否開啟。",
-    "ja": "- ZCode のアカウント管理を新たに追加しました。BigModel と Z.ai のログイン、アカウント切り替え、プラン・利用枠・残り時間の表示に対応しています。\n- ChatGPT / Codex CLI の Web Search スイッチと説明を復元し、有効・無効を選べるようにしました。"
+    "zh-cn": "- WorkBuddy 和 WorkBuddy AI 支持切换账号后共享本地聊天记录，保留原会话并继续对话；两个客户端的记录各自独立。\n- 切换 WorkBuddy 账号前自动备份本地聊天记录，切换失败时恢复账号配置和聊天记录。",
+    "en": "- Share local chat history across account switches in WorkBuddy and WorkBuddy AI, keeping the original sessions available to continue. Each client retains its own separate history.\n- Automatically back up local chat history before switching WorkBuddy accounts and restore account settings and chat history if switching fails.",
+    "zh-tw": "- WorkBuddy 和 WorkBuddy AI 支援切換帳號後共用本機聊天記錄，保留原會話並繼續對話；兩個客戶端的記錄各自獨立。\n- 切換 WorkBuddy 帳號前自動備份本機聊天記錄，切換失敗時還原帳號設定和聊天記錄。",
+    "ja": "- WorkBuddy と WorkBuddy AI で、アカウントを切り替えてもローカルのチャット履歴を共有し、元のセッションを続けられるようになりました。各クライアントの履歴は個別に保持されます。\n- WorkBuddy のアカウント切り替え前にローカルのチャット履歴を自動バックアップし、切り替えに失敗した場合はアカウント設定とチャット履歴を復元します。"
   }
 }
