@@ -1,6 +1,6 @@
 {
-  "version": "5.8.7",
-  "releaseDate": "2026-10-04",
+  "version": "5.8.8",
+  "releaseDate": "2026-10-05",
   "releaseNotes": "- WorkBuddy 和 WorkBuddy AI 支持切换账号后共用本地聊天记录，保留原会话并继续对话。\n- 完善 ZCode、DeepSeek Harness、Grok Build、Antigravity CLI、Antigravity 桌面端和 Cursor 的账号切换，保留本地对话记录和原会话，沿用客户端的会话恢复方式继续对话。\n- 切换 WorkBuddy 或 WorkBuddy AI 账号前自动备份本地聊天记录，切换失败时恢复账号配置和聊天记录。\n- 本地历史仅在同一工具的账号间共用，各工具及 WorkBuddy 两个客户端的记录独立保存。",
   "releaseNotesI18n": {
     "zh-cn": "- WorkBuddy 和 WorkBuddy AI 支持切换账号后共用本地聊天记录，保留原会话并继续对话。\n- 完善 ZCode、DeepSeek Harness、Grok Build、Antigravity CLI、Antigravity 桌面端和 Cursor 的账号切换，保留本地对话记录和原会话，沿用客户端的会话恢复方式继续对话。\n- 切换 WorkBuddy 或 WorkBuddy AI 账号前自动备份本地聊天记录，切换失败时恢复账号配置和聊天记录。\n- 本地历史仅在同一工具的账号间共用，各工具及 WorkBuddy 两个客户端的记录独立保存。",
