@@ -78,9 +78,9 @@ Sponsorship contact: [hi@echobird.ai](mailto:hi@echobird.ai)
 Friends kept asking me to install **Claude Code**, **OpenClaw**, **Hermes Agent**… every machine was different, and some refused to pay for an LLM. Setup and explanations took forever. So I built **EchoBird** — an Agent inspired by **Songbird**, the genius netrunner from _Cyberpunk 2077_ who solves any tech problem for V…
 
 <p align="center">
-  <img src="docs/screenshots/deepseek-harness-demo.gif" alt="DeepSeek Harness One-click install + model switch （DEMO）" width="820" />
+  <img src="docs/screenshots/app-desktop-overview.webp" alt="EchoBird App Desktop — account and model switching" width="820" />
   <br/>
-  <sub><strong>DeepSeek Harness One-click install + model switch （DEMO）</strong></sub>
+  <sub><strong>App Desktop — account and model switching</strong></sub>
 </p>
 
 ## Highlights
